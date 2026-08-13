@@ -1,0 +1,169 @@
+﻿using FractalSpace;
+using FS_LevelEditor.Editor;
+using FS_LevelEditor.Editor.UI;
+using FS_LevelEditor.Playmode;
+using FS_LevelEditor.SaveSystem;
+using HarmonyLib;
+using System;
+using System.Reflection;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+namespace FS_LevelEditor
+{
+    public class ModMain
+    {
+
+        //metadata
+        public const string ModName = "Level Editor";
+        public const string Author = "Javialon_qv, Cafe";
+        public const string Version = "1.0.0";
+        public const string Description = "test";
+        public const bool SupportsHotReload = false;
+        public static Harmony HarmonyInstance { get; private set; }
+
+        public static string currentSceneName;
+        public static bool loadCustomLevelOnSceneLoad;
+        public static string levelFileNameWithoutExtensionToLoad;
+        public static int totalDeathsInCurrentPlaymodeSession = 0;
+
+        static readonly Vector3 groundBaseTopLeftPivot = new Vector3(-17f, 121f, -72f);
+
+        public static bool isQuitting;
+
+        public static void OnModLoaded()
+        {
+            LE_CustomErrorPopups.Init();
+            AssetBundleLoader.PreloadEmbeddedBundle("level_editor");
+            AssetBundleLoader.PreloadEmbeddedBundle("leveleditoricons");
+            FixedUpdateProvider.Init();
+            SceneManager.sceneLoaded += OnSceneWasLoaded;
+            HarmonyInstance = new Harmony("com.fs.leveleditor");
+            HarmonyInstance.PatchAll();
+            if(SceneManager.GetActiveScene().buildIndex == 1)
+            {
+                OnSceneWasLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Additive);
+            }
+        }
+
+        public static void OnSceneWasLoaded(Scene scene, LoadSceneMode lsm)
+        {
+            string sceneName = scene.name;
+            int buildIndex = scene.buildIndex;
+            currentSceneName = sceneName;
+
+            MaterialUtils.ResetMaterialWithColorsReferences();
+
+            // Debug option to know the camera position when using Free Cam from Unity Explorer.
+#if DEBUG
+            if (sceneName.Contains("Menu"))
+            {
+                GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                cube.transform.parent = Camera.main.transform;
+                cube.transform.localPosition = Vector3.zero;
+                cube.transform.rotation = Quaternion.identity;
+                cube.GetComponent<MeshRenderer>().castShadows = false;
+            }
+#endif
+            if (sceneName.Contains("Menu"))
+            {
+                if (!ExternalSpriteLoader.Instance) new GameObject("LE_ExternalSpriteLoader").AddComponent<ExternalSpriteLoader>();
+                if (!LE_MenuUIManager.Instance) new GameObject("LE_MEnuUIManager").AddComponent<LE_MenuUIManager>();
+                LE_MenuUIManager.Instance.OnSceneLoaded(sceneName);
+            }
+
+            if (sceneName.Contains("Level4_PC") && loadCustomLevelOnSceneLoad)
+            {
+                LevelData.LoadLevelDataInPlaymode(levelFileNameWithoutExtensionToLoad);
+                loadCustomLevelOnSceneLoad = false;
+            }
+            else
+            {
+                // Reset this variable.
+                totalDeathsInCurrentPlaymodeSession = 0;
+            }
+        }
+
+        public static void SetupTheWholeEditor(bool willLoadALevel = false)
+        {
+            SetupEditorBasics();
+
+            new GameObject("EditorController").AddComponent<EditorController>();
+            new GameObject("EditorUIManager").AddComponent<EditorUIManager>();
+
+            if (!willLoadALevel)
+            {
+                SpawnBase();
+                CreateDirectionalLight(new Vector3(-13f, 130f, -56f), new Vector3(45f, 180f, 0f));
+                CreatePlayerSpawn(new Vector3(-13f, 121.5f, -68f), Vector3.zero);
+            }
+        }
+
+        static void SetupEditorBasics()
+        {
+            // Disable the Menu Level objects.
+            GameObject.Find("Level").SetActive(false);
+
+            // Set camera's new position and rotation.
+            GameObject camera = GameObject.Find("Main Camera");
+            GameObject.Destroy(camera.GetComponent<Animation>());
+            camera.transform.position = new Vector3(-15f, 125f, -75f);
+            camera.transform.localEulerAngles = new Vector3(45f, 0f, 0f);
+
+            // Add the camera movement component to... well... the camera.
+            camera.AddComponent<EditorCameraMovement>();
+        }
+
+        static void SpawnBase()
+        {
+            for (int width = 0; width < 3; width++)
+            {
+                for (int height = 0; height < 3; height++)
+                {
+                    Vector3 position = groundBaseTopLeftPivot;
+                    position.x += width * 4f;
+                    position.z += height * 4f;
+
+                    EditorController.Instance.PlaceObject(LE_Object.ObjectType.GROUND, position, Vector3.zero, Vector3.one, false);
+                }
+            }
+        }
+
+        public static GameObject CreateDirectionalLight(Vector3 position, Vector3 rotation)
+        {
+            GameObject lightObj = EditorController.Instance.PlaceObject(LE_Object.ObjectType.DIRECTIONAL_LIGHT, position, rotation, Vector3.one, false);
+            return lightObj;
+        }
+
+        public static GameObject CreatePlayerSpawn(Vector3 position, Vector3 rotation)
+        {
+            GameObject playerSpanw = EditorController.Instance.PlaceObject(LE_Object.ObjectType.PLAYER_SPAWN, position, rotation, Vector3.one, false);
+            return playerSpanw;
+        }
+
+        public static GameObject LoadOtherObjectInBundle(string objectName)
+        {
+            if (EditorController.Instance != null && PlayModeController.Instance == null)
+            {
+                return EditorController.Instance.LoadOtherObjectInBundle(objectName);
+            }
+            else if (EditorController.Instance == null && PlayModeController.Instance != null)
+            {
+                return PlayModeController.Instance.LoadOtherObjectInBundle(objectName);
+            }
+
+            return null;
+        }
+
+        public static void OnApplicationQuit()
+        {
+            isQuitting = true;
+        }
+
+        public static void OnModUnloaded()
+        {
+            isQuitting = true;
+            SceneManager.sceneLoaded -= OnSceneWasLoaded;
+        }
+    }
+}

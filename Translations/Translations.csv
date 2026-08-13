@@ -1,0 +1,235 @@
+﻿ID,ENGLISH,SPANISH,UKRAINIAN
+LevelEditor,Level Editor,Editor de Niveles,Редактор
+category.Structures,Structures,Estructuras,Структури
+category.Decorations,Decorations,Decoraciones,Декорації
+category.Activables,Activables,Accionables,Активуваньці
+category.Traps,Traps,Trampas,Пастки
+category.System,System,Sistema,Система
+object.NONE,None,Ninguno,Ніякий
+object.GROUND,Ground,Suelo,Підлога
+object.CYAN_GROUND,Cyan Ground,Suelo Cyan,Голуба підлога
+object.RED_GROUND,Red Ground,Suelo Rojo,Червона підлога
+object.ORANGE_GROUND,Orange Ground,Suelo Naranja,Оранжева підлога
+object.LARGE_GROUND,Large Ground,Suelo Grande,Велика підлога
+object.GROUND_2,Ground 2,Suelo 2,Підлога 2
+object.WALL,Wall,Pared,Стіна
+object.WALL_NO_COLOR,Wall No Color,Pared Sin Color,Стіна без кольору
+object.X_WALL,X Wall,Pared X,Стіна Х
+object.WINDOW,Window,Ventana,Вікно
+object.DIRECTIONAL_LIGHT,Directional Light,Luz Direccional,Направлене світло
+object.POINT_LIGHT,Point Light,Luz Puntual,Точкове світло
+object.CEILING_LIGHT,Ceiling Light,Lámpara,Стельове світло
+object.VENT_WITH_SMOKE_GREEN,Vent With Smoke Green,Ventilación Verde,Вентиляція з зеленим димом
+object.VENT_WITH_SMOKE_CYAN,Vent With Smoke Cyan,Ventilación Cyan,Вентиляція з голубим димом
+object.HEALTH_PACK,Health Pack,Paquete de Salud,Аптечка
+object.AMMO_PACK,Ammo Pack,Paquete de Munición,Патрони
+object.SAW,Saw,Sierra,Пила
+object.SAW_WAYPOINT,Saw Waypoint,Waypoint de Sierra,Проміжна точка пили
+object.SWITCH,Switch,Interruptor,Перемикач
+object.PLAYER_SPAWN,Player Spawn,Spawn del Jugador,Місце появи гравця
+object.CUBE,Cube,Cubo,Куб
+object.LASER,Laser,Laser,Лазер
+object.FLAME_TRAP,Flame Trap,Trampa de Fuego,Вогнева пастка
+object.COLLIDER,Collider,Colisión,Невидима стіна
+object.END_TRIGGER,End Trigger,Trigger Final,Кінець
+object.PRESSURE_PLATE,Pressure Plate,Placa de Presión,Нажимна плита
+object.SCREEN,Screen,Pantalla,Екран
+object.SMALL_SCREEN,Small Screen,Pantalla Pequeña,Малий екран
+object.BREAKABLE_WINDOW,Breakable Window,Ventana Frágil,Крихке скло
+object.TRIGGER,Trigger,Trigger,Трігер
+object.DOOR,Door,Puerta,Двері
+object.LASER_FIELD,Laser Field,Campo Laser,Лазерне поле
+object.DOOR_V2,Door V2,Puerta V2,Двері V2
+object.DEATH_TRIGGER,Death Trigger,Trigger de Muerte,Трігер смерті
+object.WAYPOINT,Waypoint,Waypoint,Точка переміщення
+object.JETPACK,Jetpack,Jetpack,Ранець
+object.ARROW,Arrow,Flecha,Стрілка
+object.GUN,Taser,Taser,Тазер
+object.MOVING_PLATFORM,Moving Platform,Plataforma Movil,Рухома платформа
+object.MOVING_PLATFORM_WAYPOINT,Moving Platform  Waypoint,Waypoint de Plataforma Movil,Точка переміщення рухомої платформа
+object.CROW,Crow,Cuervo,Ворона
+object.DESTRUCTIBLE_WALL,Fragile Wall,Pared Frágil,Крихка стіна
+object.BRIDGE,Bridge,Puente,Міст
+object.CUBE_KILLPLANE,Unauthorized Object,Objeto No Autorizado,Неавторизований об'єкт
+object.KEYPAD,Keypad,Teclado,Циферблат
+object.HEAL_AREA,Heal Area,Area de Curación,Лікувальна зона
+object.RGB_WALL,Color Wall,Pared de Color,Кольорова стіна
+object.MINE,Mine,Mina,Міна
+object.DEATH_TRIGGER_WAYPOINT,Respawn Point,Punto de Reaparición,
+object.SEQUENCE,Sequencer,Secuenciador,
+object.SEQUENCE_WAYPOINT,Sequencer Step,Etapa del Secuenciador,
+object.SEQUENCE_SCREEN,Sequence Screen,Pantalla del Secuenciador,
+object.POWER_CORE,Power Core,Núcleo de Energía,
+object.POWER_SLOT,Power Slot,Entrada de Energía,
+object.UPGRADE_TERMINAL,Upgrade Terminal,Terminal de Mejora,
+object.XMAS_TREE,XMAS Tree,Árbol de Navidad,
+Player,Player,Jugador,Гравець
+Jetpack,Jetpack,Mochila Propulsora,Джетпак
+Taser,Taser,Taser,Тазер
+events.WhenActivatingEvents,When Activating,Cuando Se Activa,Коли активне
+events.WhenDeactivatingEvents,When Deactivating,Cuando Se Desactiva,Коли неактивне
+events.WhenInvertingEvents,When Inverting,Cuando Se Invierte,Коли навпаки
+events.OnDrop,On Drop,Cuando Se Suelta,Коли активне
+events.OnRemove,On Remove,Cuando Se Remueve,Коли неактивне
+events.OnBoth,On Both,Ambos Casos,На обох
+events.OnEnter,On Enter,Al Entrar,При вході
+events.OnExit,On Exit,Al Salir,При виході
+events.OnPickup,On Pickup,Al Recoger,При піднятті
+events.OnBreak,On Break,Al Romper,При розваленні
+events.OnDeploy,On Deploy,Al Desplegar,При розкритті
+events.OnRetract,On Retract,Al Retraer,При скритті
+events.onWinEvents,On Win,Al Ganar,При правильній комбінації
+events.onFailEvents,On Lose,Al Perder,При неправильній комбінації
+events.OnInsert,On Insert,Al Insertar,
+events.OnTeleport,On Teleport,Al Teletransportar,
+pause.PlayLevel,Play Level,Jugar Nivel,Грати рівень
+pause.NoSpawnObject,There isn't any player spawn obj in the scene.,No hay ningún spawn del jugador en la escena.,В сцені немає точки появи гравця.
+pause.SaveLevel,Save Level,Guardar Nivel,Зберегти рівень
+pause.NoChanges,There are no changes to save.,No hay cambios para guardar.,"Немає змін, щоб зберегти."
+pause.ExitPopup.Title,Warning,Advertencia,Попередження
+pause.ExitPopup.Content,"Warning, exiting now will delete any changes you have made since the last save. Are you sure you want to continue?","Advertencia, al salir se van a elimiar los cambios que hayas hecho desde el último guardado, ¿estás seguro de que deseas continuar?","Попередження, якщо зараз вийти, то весь прогрес з минулого збереження буде втрачено. Ви впевнені, що хочете продовжити?"
+pause.ExitPopup.Back,No,No,Ніякий
+pause.ExitPopup.SaveAndExit,Save And Exit,Salir Y Guardar,Вийти та зберегти
+pause.ExitPopup.ExitNoSave,Exit Without Saving,Salir Sin Guardar,Вийти без збереження
+selection.NoObjectSelected,No Object Selected,Sin Objeto Seleccionado,Немає активного об'єкту
+selection.MultipleObjectsSelected,Multiple Objects Selected,Multiples Objetos Seleccionados,Декілька об'єктів вибрано
+Position,Position,Posición,Позиція
+Rotation,Rotation,Rotación,Поворот
+Scale,Scale,Escala,Розмір
+Collision,Collision,Colisión,Колізія
+tooltip.SetActiveAtStartToggle,Defines if the object will be [00FFFF]enabled[-] or [FF0000]not[-] at the beginning of the level.,Define si el objeto estará [00FFFF]activado[-] o [FF0000]no[-] al inicio del nivel.,"Вирішує, чи об'єкт буде [00FFFF]активний[-] чи [FF0000]ні[-] на початку рівня."
+ColorHex,Color (Hex),Color (Hex),Колір (Hex)
+Intensity,Intensity,Intensidad,Інтенсивність
+Range,Range,Rango,Діапазон
+ActivateOnStart,Start Enabled,Activar Al Inicio,Активувати на старті
+Damage,Damage,Daño,Шкода
+TravelBack,Travel Back,Regresarse,Повернутись назад
+AddGlobalWaypoint,+ Add Global Waypoint,+ Añadir Waypoint Global,+ Додати глобальну точку переміщення
+AddSawWaypoint,+ Add Saw Waypoint,+ Añadir Waypoint de Sierra,+ Додати точку переміщення пили
+AddMovingPlatformWaypoint,+ Add Moving Platform Waypoint,+ Añadir Waypoint de Plataforma,+ Додати точку переміщення платформ
+WaitTime,Wait Time,Tiempo de Espera,Час очікування
+InitialState,Initial State,Estado Inicial,Початковий стан
+DEACTIVATED,DEACTIVATED,DESACTIVADO,ДЕАКТИВОВАНИЙ
+ACTIVATED,ACTIVATED,ACTIVADO,АКТИВОВАНИЙ
+UNUSABLE,UNUSABLE,UNUSABLE,НЕДОСТУПНИЙ
+UsableOnce,Usable Once,Usable Una Vez,Доступний один раз
+CanBeShotByTaser,Can be shot by Taser,Puede ser activado por el Taser,Можна активувати тазером
+ManageEvents,Manage Events,Administrar Eventos,Керувати подіями
+RespawnTime,Respawn Time,Tiempo de Reaparición,Час відновлення
+InstantKill,Instant Kill,Muerte Instantanea,Моментальна смерть
+Blinking,Blinking,Parpadeante,Мигання
+OFFDuration,Off Duration,Duración Apagado,Тривалість ON
+ONDuration,On Duration,Duración Prendido,Тривалість OFF
+Constant,Constant,Constante,Постійне
+OnlyOnce,Only Once,Una sola Vez,Лише раз
+ScreenColor,Screen Color,Color de la Pantalla,Колір екрану
+CYAN,CYAN,CYAN,Голубий
+GREEN,GREEN,VERDE,Зелений
+RED,RED,ROJO,Червоний
+InvisibleMesh,Invisible Mesh,Malla Invisible,Невидимий екран
+InvertTextWithGravity,Invert Text With Gravity,Invertir Texto Con La Gravedad,Перевертати текст з гравітацією
+ScaledText,Scaled Text,Texto Escalado,Розмір тексту
+EditText,Edit Text,Editar Texto,Редагувати текст
+CurrentMode,[c][ffff00]Current Mode:[-][/c],[c][ffff00]Modo Actual:[-][/c],[c][ffff00]Поточний режим:[-][/c]
+Building,Building,Construcción,Будівництво
+Selection,Selection,Selección,Вибір
+Deletion,Deletion,Eliminación,Видалення
+GlobalProperties,Global Properties,Propiedades Globales,Глобальні настройки
+HasTaser,Has Taser,Con Taser,Має тазер
+HasJetpack,Has Jetpack,Con Jetpack,Має джетпак
+DeathYLimit,Death Limit on the Y-axis,Límite de Muerte en el eje Y,Ліміт по осі Y для смерті
+Skybox,Skybox,Skybox,Скайбокс
+Chapter 1,Chapter 1,Capítulo 1,Глава 1
+Chapter 2,Chapter 2,Capítulo 2,Глава 2
+Chapter 3 & 4,Chapter 3 & 4,Capítulo 3 Y 4,Глава 3 & 4
+Loop,Loop,Bucle,Цикл
+TravelBackTooltip,The saw [00FFFF]returns[-] to its original position by [FFFF00]passing through the waypoints.[-],La sierra [00FFFF]regresa[-] a su posición original al [FFFF00]pasar por todos sus waypoints.[-],
+LoopTooltip,The saw [00FFFF]returns[-] to its original position in a [FFFF00]straight line [b]ignoring[/b] the waypoints.[-],La sierra [00FFFF]regresa[-] a su posición original en una [FFFF00]linea recta [b]ignorando[/b] los waypoints.[-],
+EventsDoorStateTooltip,"[b][FFFF00]NOTE:[-][/b] If the door is set as [00FFFF]automatic[-], trying to open it will only [b]allow it to open[/b], but it won't really open until a [b]player gets closer to it.[/b]","[b][FFFF00]NOTA:[-][/b] Si la puerta está puesta como [00FFFF]automática[-], tratar de abrirla solo le [b]permitirá abrirse[/b], pero no se abrirá realmente hasta que [b]el jugador se acerque a ella.[/b]",
+DeathTriggerType,Type,Tipo,Тип
+DeathRelocation,RELOCATION,RELOCALIZAR,РЕЛОКАЦІЯ
+DeathImminent,IMMINENT,INMINENTE,СМЕРТЬ
+Delay,Delay,Retraso,Затримка
+Rotate,Rotate?,¿Rotar?,Повертати?
+RotateSpeed,Rotate speed,Velocidad de Rotación,Швидкість повертання
+Ammo,Ammo,Munición,Патрони
+InfiniteTaser,Infinite Taser,Taser infinito,Бескінечний тазер
+InvisibleEdges,Invisible Edges,Bordes Invisibles,Невидимі бортики
+StartMovingAtStart,Move At Start,Mover Al Inicio,Почати рух при старті
+MovingSpeed,Moving Speed,Velocidad de Movimiento,Швидкість руху
+StartDelay,Start Delay,Espera al Inicio,Затримка початку
+MovementMode,Movement Mode,Modo de Movimiento,Тип руху
+None_Mayus,NONE,NINGUNO,НІЧОГО
+Keycode,Keycode,Código,Код
+IgnoreIfInHands,Ignore if currently picked up,Ignorar si ya está recogido,"Ігнорувати, якщо піднято"
+TravelBack_Mayus,TRAVEL BACK,REGRESARSE,ПОВЕРНУТИСЯ
+Loop_Mayus,LOOP,BUCLE,ЗАЦИКЛЕНО
+IsAutomatic,Is Automatic?,¿Es Automática?,Автоматичні?
+CLOSED,CLOSED,CERRADA,ЗАКРИТІ
+OPEN,OPEN,ABIERTA,ВІДКРИТІ
+LOCKED,LOCKED,BLOQUEADA,ЗАБЛОКОВАНІ
+UNLOCKED,UNLOCKED,DESBLOQUEADA,РОЗБЛОКОВАНІ
+DamageThroughWalls,Damage through walls,Daño a través de las paredes,
+BreakWindows,Break Windows on explosion,Romper Ventanas al explotar,
+ExplosionDamage,Explosion Damage,Daño de Explosión,
+ContactRadius,Contact Radius,Radio de Contacto,
+RemoteRadius,Remote Radius,Radio Remoto,
+ProximityRadius,Proximity Radius,Radio de Proximidad,
+HealValue,Heal Value,Valor de Curación,
+HealInterval,Heal Interval,Intervalo de Curación,
+MaxHealth,Max Health,Máxima Salud,
+TriggerMode,Trigger Mode,Modo del Trigger,
+OnlyByTaser,Only By Taser,Solo por el Taser,
+Lifetime,Lifetime,Tiempo de vida,
+RETRACTED,RETRACTED,RETRACTADO,
+DEPLOYED,DEPLOYED,DESPLEGADO,
+allCorrect,All Correct,Todo Correcto,
+AddDeathTriggerWaypoint,+ Add Respawn Point,+ Añadir Punto de Reaparición,
+RotatePlayer,Rotate Player,Rotar al Jugador,
+Close,Close,Cerrar,
+CloseFast,Close Fast,Cerrar Rápido,
+DoNothing,Do Nothing,No hacer nada,
+BreakWithDodge,Break With Dodge,Romper Al Evadir,
+LeaveOnIncorrect,Leave On Incorrect,Salir Al Fallar,
+Alternative,Alternative,Alternativo,
+AlternativeComb,Alternative Keycode,Código Alternativo,
+AddSequencerWaypoint,+ Add Sequencer Step,+ Añadir Etapa del Secuenciador,
+events.OnSuccess,On Success,Al Completar,
+SequencerID,Sequencer ID,ID del Secuenciador,
+InvertDisplayOrder,Invert Display Order,Invertir Orden,
+UseNumbers,Use Numbers,Usar Números,
+HasFlashlight,Has Flashlight,Con Linterna,
+DebugAllowed,Debug Allowed,Permitir Modo Debug,
+AddToGroupButton,+ Add To Group,+ Añadir A Grupo,
+AddToGroupTitle,Add To Group,Añadir A Grupo,
+AddToExistingGroup,+ Add To Existing Group,+ Añadir A Grupo Existente,
+AddToNewGroup,+ Add To New Group,+ Añadir A Grupo Nuevo,
+GroupsTitle,Groups,Grupos,
+SelectAll,Select All,Seleccionar Todo,
+DeleteGroup,Delete Group,Eliminar Grupo,
+Group,Group,Grupo,
+RemoveFromGroup,Remove From Group,Eliminar Del Grupo,
+StopHere,Stop Here,Parar Aquí,
+events.WhenReached,When Reached,Al Ser Alcanzado,
+ExecIfInside,Execute Events If Inside,Ejecutar Eventos Si Está Adentro,
+ExecIfDespawned,Execute Events If Despawned,Ejecutar Eventos Si Está Desactivado,
+ExecIfInsideTooltip,Executes the [b]On Enter[/b] events when the trigger is [i]spawned[/i] while the player is [b]already inside.[/b],Ejecuta los eventos [b]Al Entrar[/b] cuando el trigger se [i]activa[/i] mientras el jugador [b]ya está adentro.[/b],
+ExecIfDespawnedTooltip,Executes the [b]On Exit[/b] events when the trigger is [i]despawned[/i] while the player is [b]still inside.[/b],Ejecuta los eventos [b]Al Salir[/b] cuando el trigger se [i]desactiva[/i] mientras el jugador [b]sigue adentro.[/b],
+canBeUsed,Usable,Usable,
+DestroyCubes,Destroy Cubes,Destruir Cubos,
+FindObject,Find Object,Encontrar Objeto,
+SelectObject,Select Object,Seleccionar Objeto,
+SelectAllObjects,Select All Objects,Seleccionar Todos los Objetos,
+EnterAnObjectName,Enter an object name...,Introduce el nombre de un objeto...,
+RotatePlayerTooltip,Should the player rotate where this respawn point is looking at?,¿Debería rotar el jugador a donde el punto de reaparición está mirando?,
+PowerSlotInitialStateTooltip,[b][FFFF00]WARNING:[-][/b] Setting this to [00FF00][i]ACTIVATED[/i][-] will create a new [i]Power Core[/i] in the level when it starts.,[b][FFFF00]ADVERTENCIA:[-][/b] Poner esto en [00FF00][i]ACTIVADO[/i][-] creará un nuevo [i]Núcleo de Energía[/i] en el nivel cuando este empiece.,
+CarriesPlayer,Carries Player,Carries Player,
+EventsTargetObjectFieldTooltip,"The [b]Target Object Field[/b] supports the following syntaxes:
+
+- [b]Objects:[/b] [FFFF00]TYPE ID[-] Example: [00FFFF]Ground 12[-].
+- [b]Player:[/b] Access to Player options.
+- [b]Taser:[/b] Access to Taser options.
+- [b]Jetpack:[/b] Access to Jetpack options.
+- [b]Objectives:[/b] [00FFFF]Obj_[-][FFFF00]OBJECTIVE TEXT[-] Example: [00FFFF]Obj_Find a way out[-].
+- [b]Wait:[/b] [00FFFF]Wait[-] [FFFF00]Xs or Xms[-] Example: [00FFFF]Wait 3s[-].
+- [b]Groups:[/b] [00FFFF]Group[-] [FFFF00]ID[-] Example: [00FFFF]Group 2[-].",,

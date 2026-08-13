@@ -1,0 +1,24 @@
+/Keyboard_Left Control\ + /Keyboard_D\ Duplicate selected object(s).
+/Keyboard_Delete\ Delete selected object(s).
+/Keyboard_Left Control\ + /Keyboard_Z\ Undo action.
+/Keyboard_Space\ Toggle object spawn state.
+
+/Keyboard_Left Control\ (Hold) Snap To Grid an object before placing it.
+/Keyboard_F\ + click the white gizmo: Snap To Grid an already placed object.
+
+/Keyboard_Up Arrow\ /Keyboard_Down Arrow\ /Keyboard_Left Arrow\ /Keyboard_Right Arrow\ Precise object movement (camera based).
+/Keyboard_Black_Mouse_Previous\ and /Keyboard_Black_Mouse_Next\ Precise object movement up and down.
+
+/Keyboard_Black_PositiveScrollWheel\ or /Keyboard_Black_NegativeScrollWheel\ Move grid up and down.
+/Keyboard_G\ Toggle grid view.
+/Keyboard_Left Control\ + /Keyboard_Black_PositiveScrollWheel\ Increase grid size.
+/Keyboard_Left Control\ + /Keyboard_Black_NegativeScrollWheel\ Decrease grid size.
+/Keyboard_Left Shift\ + /Keyboard_Black_PositiveScrollWheel\ Increase grid height.
+/Keyboard_Left Shift\ + /Keyboard_Black_NegativeScrollWheel\ Decrease grid height.
+
+/Keyboard_O\ Open Global Properties menu (Upgrades, Skybox, etc.).
+/Keyboard_Left Control\ + /Keyboard_H\ Toggle categories tab in building mode.
+
+/Keyboard_Left Control\ + /Keyboard_S\ Save level.
+/Keyboard_Left Control\ + /Keyboard_P\ Enter playmode.
+/Keyboard_F2\ Toggle performance mode.

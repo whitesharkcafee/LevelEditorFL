@@ -1,0 +1,634 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ===========================================================================================
+  Ready-to-build Fractal Space mod project. References (almost) every game DLL up front, so most
+  Unity / game APIs are available without you having to add references by hand.
+
+  PATH TO THE GAME DLLs ($(GameManaged)):
+    Defaults to "..\Fractal_Space_Data\Managed" - correct when this folder ships INSIDE your
+    Fractal Space game folder (next to the .exe). To build from elsewhere, set GameManaged via a
+    Directory.Build.props next to this file, or:  dotnet build -p:GameManaged="C:\...\Managed"
+
+  TO BUILD:  open in Visual Studio and Build (F6), or run "dotnet build" here.
+  Output:    bin\Debug\FS_LevelEditor.dll  ->  copy into your Mods folder:
+             %USERPROFILE%\AppData\LocalLow\Haze Games\Fractal Space MOD\Mods\
+  ===========================================================================================
+-->
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="packages\ILRepack.2.0.46\build\ILRepack.props" Condition="Exists('packages\ILRepack.2.0.46\build\ILRepack.props')" />
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <OutputType>Library</OutputType>
+    <RootNamespace>FS_LevelEditor</RootNamespace>
+    <AssemblyName>FS_LevelEditor</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <TargetFrameworkIdentifier>.NETFramework</TargetFrameworkIdentifier>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+    <!-- Compile against UNITY's mscorlib (referenced below), NOT .NET Framework's -->
+    <NoStdLib>true</NoStdLib>
+    <GameManaged Condition=" '$(GameManaged)' == '' ">..\Fractal_Space_Data\Managed</GameManaged>
+    <GameScripts Condition=" '$(GameScripts)' == '' ">$(GameManaged)</GameScripts>
+    <GameRoot>$([System.IO.Path]::GetFullPath($([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', '$(GameManaged)', '..', '..'))))</GameRoot>
+    <GameExe>$(GameRoot)\Fractal_Space.exe</GameExe>
+    <StartAction>Program</StartAction>
+    <StartProgram>$(GameExe)</StartProgram>
+    <StartWorkingDirectory>$(GameRoot)</StartWorkingDirectory>
+    <OutputPath Condition=" '$(OutputPath)' == '' ">$(USERPROFILE)\AppData\LocalLow\Haze Games\Fractal Space MOD\Mods\</OutputPath>
+    <!-- OutputPath above is absolute and typically on a different drive (C:) than this
+         project (e.g. G:). MSBuild's default OutDir derivation tries to make OutDir
+         relative to the project directory and can truncate the drive letter when the
+         drives differ, producing a broken root-relative path like "\Mods". Force OutDir
+         to exactly match OutputPath so nothing re-derives it incorrectly. -->
+    <OutDir>$(OutputPath)</OutDir>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <ProjectGuid>{340F163F-4D3C-BA8B-B363-93CF1A0450F3}</ProjectGuid>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+  </PropertyGroup>
+  <!-- Global setting to prevent ANY copy-local behavior project-wide.
+       NOTE: the NuGet package references below explicitly override this back to
+       Private=True so Costura.Fody will pick them up and embed them into the output DLL. -->
+  <ItemDefinitionGroup>
+    <Reference>
+      <Private>False</Private>
+    </Reference>
+  </ItemDefinitionGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <Optimize>false</Optimize>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <Optimize>true</Optimize>
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Remove="Il2Cpp\**" />
+    <None Remove="Il2Cpp\**" />
+    <None Include="app.config" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="KeybindsList.txt" />
+    <None Remove="leveleditoricons" />
+    <None Remove="level_editor" />
+    <None Remove="level_editor_sprites" />
+    <None Remove="Translations\Translations.csv" />
+  </ItemGroup>
+  <PropertyGroup>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <!-- All references resolve from $(GameManaged) or packages.
+       Game/Unity references keep Private=False (they ship with the game already).
+       NuGet package references below are set to Private=True so Costura embeds them. -->
+  <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>$(GameManaged)\0Harmony.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="AmazingAssets.TerrainToMesh">
+      <HintPath>$(GameManaged)\AmazingAssets.TerrainToMesh.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp-firstpass">
+      <HintPath>$(GameManaged)\Assembly-CSharp-firstpass.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(GameScripts)\Assembly-CSharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="InControl">
+      <HintPath>$(GameManaged)\InControl.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=6.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.Bcl.AsyncInterfaces.6.0.0\lib\net461\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Mono.Security">
+      <HintPath>$(GameManaged)\Mono.Security.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(GameManaged)\Newtonsoft.Json.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ReformSim.RaindropEffect">
+      <HintPath>$(GameManaged)\ReformSim.RaindropEffect.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ScreenSpaceReflections">
+      <HintPath>$(GameManaged)\ScreenSpaceReflections.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.Buffers, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\System.Buffers.4.5.1\lib\net461\System.Buffers.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Configuration">
+      <HintPath>$(GameManaged)\System.Configuration.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.Core">
+      <HintPath>$(GameManaged)\System.Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.Data">
+      <HintPath>$(GameManaged)\System.Data.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.Drawing">
+      <HintPath>$(GameManaged)\System.Drawing.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.Memory, Version=4.0.1.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\System.Memory.4.5.4\lib\net461\System.Memory.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Numerics">
+      <HintPath>$(GameManaged)\System.Numerics.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.Numerics.Vectors, Version=4.1.4.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>packages\System.Numerics.Vectors.4.5.0\lib\net46\System.Numerics.Vectors.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>packages\System.Runtime.CompilerServices.Unsafe.6.0.0\lib\net461\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Runtime.Serialization">
+      <HintPath>$(GameManaged)\System.Runtime.Serialization.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.Text.Encodings.Web, Version=6.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\System.Text.Encodings.Web.6.0.0\lib\net461\System.Text.Encodings.Web.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Text.Json, Version=6.0.0.10, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\System.Text.Json.6.0.10\lib\net461\System.Text.Json.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Threading.Tasks.Extensions, Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\System.Threading.Tasks.Extensions.4.5.4\lib\net461\System.Threading.Tasks.Extensions.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\System.ValueTuple.4.5.0\lib\net47\System.ValueTuple.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Xml.Linq">
+      <HintPath>$(GameManaged)\System.Xml.Linq.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.Xml">
+      <HintPath>$(GameManaged)\System.Xml.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System">
+      <HintPath>$(GameManaged)\System.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.MemoryProfiler">
+      <HintPath>$(GameManaged)\Unity.MemoryProfiler.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Postprocessing.Runtime">
+      <HintPath>$(GameManaged)\Unity.Postprocessing.Runtime.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Services.Analytics">
+      <HintPath>$(GameManaged)\Unity.Services.Analytics.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Services.Core.Configuration">
+      <HintPath>$(GameManaged)\Unity.Services.Core.Configuration.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Services.Core.Device">
+      <HintPath>$(GameManaged)\Unity.Services.Core.Device.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Services.Core.Environments.Internal">
+      <HintPath>$(GameManaged)\Unity.Services.Core.Environments.Internal.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Services.Core.Internal">
+      <HintPath>$(GameManaged)\Unity.Services.Core.Internal.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Services.Core.Registration">
+      <HintPath>$(GameManaged)\Unity.Services.Core.Registration.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Services.Core.Scheduler">
+      <HintPath>$(GameManaged)\Unity.Services.Core.Scheduler.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Services.Core.Telemetry">
+      <HintPath>$(GameManaged)\Unity.Services.Core.Telemetry.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Services.Core.Threading">
+      <HintPath>$(GameManaged)\Unity.Services.Core.Threading.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.Services.Core">
+      <HintPath>$(GameManaged)\Unity.Services.Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.TextMeshPro">
+      <HintPath>$(GameManaged)\Unity.TextMeshPro.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.AIModule">
+      <HintPath>$(GameManaged)\UnityEngine.AIModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.AccessibilityModule">
+      <HintPath>$(GameManaged)\UnityEngine.AccessibilityModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.AdaptivePerformanceModule">
+      <HintPath>$(GameManaged)\UnityEngine.AdaptivePerformanceModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.AndroidJNIModule">
+      <HintPath>$(GameManaged)\UnityEngine.AndroidJNIModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.AnimationModule">
+      <HintPath>$(GameManaged)\UnityEngine.AnimationModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.AssetBundleModule">
+      <HintPath>$(GameManaged)\UnityEngine.AssetBundleModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.AudioModule">
+      <HintPath>$(GameManaged)\UnityEngine.AudioModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(GameManaged)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CrashReportingModule">
+      <HintPath>$(GameManaged)\UnityEngine.CrashReportingModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.DirectorModule">
+      <HintPath>$(GameManaged)\UnityEngine.DirectorModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.GridModule">
+      <HintPath>$(GameManaged)\UnityEngine.GridModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.HierarchyCoreModule">
+      <HintPath>$(GameManaged)\UnityEngine.HierarchyCoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(GameManaged)\UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IdentifiersModule">
+      <HintPath>$(GameManaged)\UnityEngine.IdentifiersModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ImageConversionModule">
+      <HintPath>$(GameManaged)\UnityEngine.ImageConversionModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.InputForUIModule">
+      <HintPath>$(GameManaged)\UnityEngine.InputForUIModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>$(GameManaged)\UnityEngine.InputLegacyModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.InputModule">
+      <HintPath>$(GameManaged)\UnityEngine.InputModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.JSONSerializeModule">
+      <HintPath>$(GameManaged)\UnityEngine.JSONSerializeModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.MultiplayerModule">
+      <HintPath>$(GameManaged)\UnityEngine.MultiplayerModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule">
+      <HintPath>$(GameManaged)\UnityEngine.ParticleSystemModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.Physics2DModule">
+      <HintPath>$(GameManaged)\UnityEngine.Physics2DModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>$(GameManaged)\UnityEngine.PhysicsModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.PropertiesModule">
+      <HintPath>$(GameManaged)\UnityEngine.PropertiesModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ScreenCaptureModule">
+      <HintPath>$(GameManaged)\UnityEngine.ScreenCaptureModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.SharedInternalsModule">
+      <HintPath>$(GameManaged)\UnityEngine.SharedInternalsModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.SpriteShapeModule">
+      <HintPath>$(GameManaged)\UnityEngine.SpriteShapeModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.SubsystemsModule">
+      <HintPath>$(GameManaged)\UnityEngine.SubsystemsModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TerrainModule">
+      <HintPath>$(GameManaged)\UnityEngine.TerrainModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextCoreFontEngineModule">
+      <HintPath>$(GameManaged)\UnityEngine.TextCoreFontEngineModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextCoreTextEngineModule">
+      <HintPath>$(GameManaged)\UnityEngine.TextCoreTextEngineModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(GameManaged)\UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TilemapModule">
+      <HintPath>$(GameManaged)\UnityEngine.TilemapModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(GameManaged)\UnityEngine.UI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UIElementsModule">
+      <HintPath>$(GameManaged)\UnityEngine.UIElementsModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(GameManaged)\UnityEngine.UIModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UnityAnalyticsCommonModule">
+      <HintPath>$(GameManaged)\UnityEngine.UnityAnalyticsCommonModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UnityAnalyticsModule">
+      <HintPath>$(GameManaged)\UnityEngine.UnityAnalyticsModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UnityConsentModule">
+      <HintPath>$(GameManaged)\UnityEngine.UnityConsentModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestAssetBundleModule">
+      <HintPath>$(GameManaged)\UnityEngine.UnityWebRequestAssetBundleModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestAudioModule">
+      <HintPath>$(GameManaged)\UnityEngine.UnityWebRequestAudioModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestModule">
+      <HintPath>$(GameManaged)\UnityEngine.UnityWebRequestModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestTextureModule">
+      <HintPath>$(GameManaged)\UnityEngine.UnityWebRequestTextureModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestWWWModule">
+      <HintPath>$(GameManaged)\UnityEngine.UnityWebRequestWWWModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.VFXModule">
+      <HintPath>$(GameManaged)\UnityEngine.VFXModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.VRModule">
+      <HintPath>$(GameManaged)\UnityEngine.VRModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.VideoModule">
+      <HintPath>$(GameManaged)\UnityEngine.VideoModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.XRModule">
+      <HintPath>$(GameManaged)\UnityEngine.XRModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(GameManaged)\UnityEngine.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="mscorlib">
+      <HintPath>$(GameManaged)\mscorlib.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="BuildInfo.cs" />
+    <Compile Include="ModMain.cs" />
+    <Compile Include="Editor\EditorGizmo.cs" />
+    <Compile Include="Editor\EditorKeybinds.cs" />
+    <Compile Include="Editor\UI\AddToGroupUI.cs" />
+    <Compile Include="Editor\UI\ContextMenu.cs" />
+    <Compile Include="Editor\UI\EditorObjectsToBuildUI.cs" />
+    <Compile Include="Editor\UI\FindObjectUI.cs" />
+    <Compile Include="Editor\UI\GlobalPropertiesPanel.cs" />
+    <Compile Include="Editor\UI\GroupsUI.cs" />
+    <Compile Include="Editor\UI\NotificationSystem.cs" />
+    <Compile Include="Editor\UI\SaveMetadataPopup.cs" />
+    <Compile Include="Editor\UI\SelectedObjPanel.cs" />
+    <Compile Include="Editor\UI\TextEditorUI.cs" />
+    <Compile Include="Editor\UI\UpgradesPanel.cs" />
+    <Compile Include="EventExecuter.cs" />
+    <Compile Include="Editor\DeathYPlaneCtrl.cs" />
+    <Compile Include="Editor\EditorCameraMovement.cs" />
+    <Compile Include="Editor\EditorController.cs" />
+    <Compile Include="Editor\UI\EventsUIPageManager.cs" />
+    <Compile Include="LE_MenuUIManager.cs" />
+    <Compile Include="ExternalSpriteLoader.cs" />
+    <Compile Include="LE_Objects\LE_Heal_Area.cs" />
+    <Compile Include="LE_Objects\LE_Power_Core.cs" />
+    <Compile Include="LE_Objects\LE_Power_Slot.cs" />
+    <Compile Include="LE_Objects\LE_Rgb_Wall.cs" />
+    <Compile Include="LE_Objects\LE_Sequence.cs" />
+    <Compile Include="LE_Objects\LE_Sequence_Screen.cs" />
+    <Compile Include="LE_Objects\LE_Upgrade_Terminal.cs" />
+    <Compile Include="LE_Objects\LE_Xmas_Tree.cs" />
+    <Compile Include="LE_Objects\Waypoints\LE_Death_Trigger_Waypoint.cs" />
+    <Compile Include="LE_Objects\Waypoints\LE_Sequence_Waypoint.cs" />
+    <Compile Include="Misc\ScaleTweener.cs" />
+    <Compile Include="Playmode\AndLogicManager.cs" />
+    <Compile Include="Playmode\Patches\DebugModePatch.cs" />
+    <Compile Include="Playmode\Patches\ParticlesPatch.cs" />
+    <Compile Include="Playmode\PlaymodeUpgrades.cs" />
+    <Compile Include="SingleObjectLink.cs" />
+    <Compile Include="SingleObjectLinks\SequencerScreenObjectLink.cs" />
+    <Compile Include="UI_Related\UIVector3Fields.cs" />
+    <Compile Include="Utils\AnimationUtils.cs" />
+    <Compile Include="Utils\AssetBundleLoader.cs" />
+    <Compile Include="Utils\CoroutineUtils.cs" />
+    <Compile Include="Utils\FixedUpdateProvider.cs" />
+    <Compile Include="Utils\MaterialUtils.cs" />
+    <Compile Include="WaypointSupport.cs" />
+    <Compile Include="LE_Objects\LE_Bridge.cs" />
+    <Compile Include="LE_Objects\LE_Cube_Killplane.cs" />
+    <Compile Include="LE_Objects\LE_Death_Trigger.cs" />
+    <Compile Include="LE_Objects\LE_Destructible_Wall.cs" />
+    <Compile Include="LE_Objects\LE_Door.cs" />
+    <Compile Include="LE_Objects\LE_Door_V2.cs" />
+    <Compile Include="LE_Objects\LE_Gun.cs" />
+    <Compile Include="LE_Objects\LE_Jetpack.cs" />
+    <Compile Include="LE_Objects\LE_Keypad.cs" />
+    <Compile Include="LE_Objects\LE_Laser_Field.cs" />
+    <Compile Include="LE_Objects\LE_Mine.cs" />
+    <Compile Include="LE_Objects\LE_Moving_Platform.cs" />
+    <Compile Include="LE_Objects\LE_Small_Screen.cs" />
+    <Compile Include="LE_Objects\LE_Trigger.cs" />
+    <Compile Include="LE_Objects\LE_Vent_With_Smoke_Cyan.cs" />
+    <Compile Include="LE_Objects\LE_Waypoint.cs" />
+    <Compile Include="LE_Objects\Waypoints\LE_Moving_Platform_Waypoint.cs" />
+    <Compile Include="Logger.cs" />
+    <Compile Include="Misc\GlobalScaleChanger.cs" />
+    <Compile Include="Misc\RotationTweener.cs" />
+    <Compile Include="Misc\ScaleScreenText.cs" />
+    <Compile Include="Patches.cs" />
+    <Compile Include="Playmode\Patches\ChapterLocPatch.cs" />
+    <Compile Include="Playmode\Patches\ChapterRestartPatch.cs" />
+    <Compile Include="Playmode\Patches\ChapterTextPatches.cs" />
+    <Compile Include="Playmode\Patches\DeathLimitPatch.cs" />
+    <Compile Include="Playmode\Patches\GamePausePatch.cs" />
+    <Compile Include="Playmode\Patches\LoadBGImagePatch.cs" />
+    <Compile Include="Playmode\Patches\PerformancePatch.cs" />
+    <Compile Include="Playmode\Patches\PlayerDeathPatch.cs" />
+    <Compile Include="Playmode\Patches\PlaySavePatches.cs" />
+    <Compile Include="Playmode\Patches\SpeedrunTimerPatch.cs" />
+    <Compile Include="Playmode\Patches\UpgradesPatches.cs" />
+    <Compile Include="Playmode\PlayModeController.cs" />
+    <Compile Include="LE_Objects\LE_Ammo_Pack.cs" />
+    <Compile Include="LE_Objects\LE_Breakable_Window.cs" />
+    <Compile Include="LE_Objects\LE_Ceiling_Light.cs" />
+    <Compile Include="LE_Objects\LE_Collider.cs" />
+    <Compile Include="LE_Objects\LE_Cube.cs" />
+    <Compile Include="LE_Objects\LE_End_Trigger.cs" />
+    <Compile Include="LE_Objects\LE_Flame_Trap.cs" />
+    <Compile Include="LE_Objects\LE_Laser.cs" />
+    <Compile Include="LE_Objects\LE_Player_Spawn.cs" />
+    <Compile Include="LE_Objects\LE_Health_Pack.cs" />
+    <Compile Include="LE_Objects\LE_Point_Light.cs" />
+    <Compile Include="LE_Objects\LE_Directional_Light.cs" />
+    <Compile Include="LE_Objects\LE_Pressure_Plate.cs" />
+    <Compile Include="LE_Objects\LE_Saw.cs" />
+    <Compile Include="LE_Objects\Waypoints\LE_Saw_Waypoint.cs" />
+    <Compile Include="LE_Objects\LE_Screen.cs" />
+    <Compile Include="LE_Objects\LE_Switch.cs" />
+    <Compile Include="LE_Objects\LE_Vent_With_Smoke_Green.cs" />
+    <Compile Include="Playmode\PlaymodePauseMenuPatcher.cs" />
+    <Compile Include="SaveSystem\Converters\LEIgnoreDefaultValuesInLEEvents.cs" />
+    <Compile Include="SaveSystem\Converters\LEPropertiesConverterNew.cs" />
+    <Compile Include="SaveSystem\Converters\LevelObjectDataConverter.cs" />
+    <Compile Include="SaveSystem\Converters\OldPropertiesRename.cs" />
+    <Compile Include="SaveSystem\SavePatches.cs" />
+    <Compile Include="SaveSystem\SerializableTypes\ColorSerializable.cs" />
+    <Compile Include="SaveSystem\SerializableTypes\Vector3Serializable.cs" />
+    <Compile Include="TranslationsManager.cs" />
+    <Compile Include="Editor\EditorPauseMenuPatcher.cs" />
+    <Compile Include="Editor\UI\EditorUIManager.cs" />
+    <Compile Include="LE_Object.cs" />
+    <Compile Include="UI_Related\LevelButtonController.cs" />
+    <Compile Include="UI_Related\LE_CustomErrorPopups.cs" />
+    <Compile Include="UI_Related\LE_UIButtonActionCtrl.cs" />
+    <Compile Include="SaveSystem\LevelData.cs" />
+    <Compile Include="SaveSystem\LE_ObjectData.cs" />
+    <Compile Include="UI_Related\NGUI_Utils.cs" />
+    <Compile Include="UI_Related\UIButtonAsToggle.cs" />
+    <Compile Include="UI_Related\UIButtonMultiple.cs" />
+    <Compile Include="UI_Related\UISmallButtonMultiple.cs" />
+    <Compile Include="UI_Related\UIButtonPatcher.cs" />
+    <Compile Include="UI_Related\UICustomInputField.cs" />
+    <Compile Include="UI_Related\UIDropdownPatcher.cs" />
+    <Compile Include="UI_Related\UIInputSubmitFix.cs" />
+    <Compile Include="UI_Related\UIToggleCheckedFix.cs" />
+    <Compile Include="UI_Related\UITogglePatcher.cs" />
+    <Compile Include="Utils.cs" />
+    <Compile Include="Utils\ScreenTemplateExpander.cs" />
+    <Compile Include="WaypointSupports\DeathTriggerWaypointSupport.cs" />
+    <Compile Include="WaypointSupports\MovingPlatformWaypointSupport.cs" />
+    <Compile Include="WaypointSupports\SawWaypointSupport.cs" />
+    <Compile Include="WaypointSupports\SequencerWaypointSupport.cs" />
+    <Compile Include="WaypointSupports\WaypointRotationApplier.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="KeybindsList2.txt" />
+    <EmbeddedResource Include="KeybindsList.txt" />
+    <EmbeddedResource Include="leveleditoricons" />
+    <EmbeddedResource Include="level_editor" />
+    <EmbeddedResource Include="level_editor_sprites" />
+    <EmbeddedResource Include="Translations\Translations.csv" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="FodyWeavers.xml" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <!-- $(FSPath) was referenced here but never defined anywhere in this project,
+         causing MSBuild to resolve destination paths as drive-root-relative (e.g. "G:\Mods")
+         instead of the intended Mods folder. TargetPath already builds straight into
+         $(OutputPath), which IS correctly configured, so no copy is needed for the main DLL. -->
+    <ItemGroup>
+      <LooseDeps Include="$(OutDir)*.dll" Exclude="$(TargetPath)" />
+    </ItemGroup>
+    <Message Importance="high" Text="Loose dependency DLLs still in output (Costura did NOT embed them): @(LooseDeps)" Condition="'@(LooseDeps)' != ''" />
+    <Message Importance="high" Text="No loose dependency DLLs found - Costura embedding appears to have worked!" Condition="'@(LooseDeps)' == ''" />
+  </Target>
+  <Target Name="InjectBuildDate" AfterTargets="BeforeCompile">
+    <PropertyGroup>
+      <BuildDate>$([System.DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss"))</BuildDate>
+    </PropertyGroup>
+    <Message Text="Injecting build date: $(BuildDate)" Importance="high" />
+    <ItemGroup>
+      <BuildInfoFiles Include="BuildInfo.cs" />
+    </ItemGroup>
+    <WriteLinesToFile File="BuildInfo.cs" Lines="namespace FS_LevelEditor { public static class BuildInfo { public const string BuildDate = &quot;$(BuildDate)&quot;%3B } }" Overwrite="true" />
+  </Target>
+  <Target Name="FodyDebugDiagnostic" AfterTargets="CoreCompile">
+    <Message Importance="high" Text="=== FODY DIAGNOSTIC ===" />
+    <Message Importance="high" Text="IntermediateAssembly = @(IntermediateAssembly)" />
+    <Message Importance="high" Text="IntermediateAssembly Exists = $([System.IO.File]::Exists('%(IntermediateAssembly.FullPath)'))" />
+    <Message Importance="high" Text="DesignTimeBuild = $(DesignTimeBuild)" />
+    <Message Importance="high" Text="BuildingForLiveUnitTesting = $(BuildingForLiveUnitTesting)" />
+    <Message Importance="high" Text="DisableFody = $(DisableFody)" />
+    <Message Importance="high" Text="FodyAfterTargets = $(FodyAfterTargets)" />
+    <Message Importance="high" Text="MSBuildVersion = $(MSBuildVersion)" />
+    <Message Importance="high" Text="=== END FODY DIAGNOSTIC ===" />
+  </Target>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('packages\ILRepack.2.0.46\build\ILRepack.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\ILRepack.2.0.46\build\ILRepack.props'))" />
+  </Target>
+</Project>

@@ -1,0 +1,33 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using UnityEngine;
+
+namespace FS_LevelEditor.WaypointSupports
+{
+    
+    public class DeathTriggerWaypointSupport : WaypointSupport
+    {
+        public override List<WaypointData> targetWaypointsData => targetObject.GetProperty<List<WaypointData>>("waypoints");
+        public override LE_Object.ObjectType waypointTypeToUse => LE_Object.ObjectType.DEATH_TRIGGER_WAYPOINT;
+        public override bool needsEmptyWaypointAtStart => false;
+        public override bool usesCustomMoveSystem => true;
+        public override Color editorLineColor => Color.yellow;
+        public override GameObject waypointTemplate => ModMain.LoadOtherObjectInBundle("Death Trigger Respawn Point");
+        public override int? maxWaypointsCount => 1;
+
+        public override void SetupForCustomSystem()
+        {
+            LE_Death_Trigger script = (LE_Death_Trigger)targetObject;
+
+            script.SetRespawnPointPositionAndRotation(spawnedWaypoints[0].transform.position, spawnedWaypoints[0].transform.eulerAngles);
+        }
+
+        public override WaypointMode GetWaypointMode()
+        {
+            return WaypointMode.NONE;
+        }
+    }
+}

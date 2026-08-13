@@ -1,0 +1,204 @@
+﻿using FS_LevelEditor;
+using FS_LevelEditor.Editor;
+using FS_LevelEditor.Playmode;
+using FractalSpace;
+using Discord;
+using UnityEngine;
+using UnityEngine.Events;
+using HarmonyLib;
+using System.Collections.Generic;
+using System.Linq;
+using System;
+
+namespace FS_LevelEditor
+{
+    
+    public class LE_Gun : LE_Object
+    {
+        Gun gun;
+        public bool infTaser;
+        public int ammo;
+        public bool rot;
+
+        public static bool isCurrentlyInfinite = false;
+
+        public override string[] EventsIDs =>
+        new[] { "OnPickup" };
+
+        public static Dictionary<string, object> GetDefaultProperties()
+        {
+            return new Dictionary<string, object>
+            {
+                { "InfiniteTaser", false },
+                { "Ammo", 1 },
+                { "OnPickup", new List<LE_Event>() },
+                { "Rotate", true }
+            };
+        }
+
+        public override void InitComponent()
+        {
+            GameObject content = gameObject.GetChild("Content");
+
+            content.SetActive(false);
+
+            content.tag = "Gun";
+            gun = content.AddComponent<Gun>();
+            gun.aimStabilizerModule = new GameObject("ShouldBeSaved");
+            gun.powerRail1Module = new GameObject("ShouldBeSaved");
+            gun.powerRail2Module = new GameObject("ShouldBeSaved");
+            gun.scopeModule = new GameObject("ShouldBeSaved");
+            gun.hoverModule = new GameObject("ShouldBeSaved");
+            gun.battery1 = content.GetChildAt("Taser_PC/Battery/Battery1");
+            gun.battery2 = new GameObject("ShouldBeSaved");
+            gun.battery3 = new GameObject("ShouldBeSaved");
+            infTaser = (bool)properties["InfiniteTaser"];
+            ammo = (int)properties["Ammo"];
+            rot = (bool)properties["Rotate"];
+            ConfigureEvents(gun);
+
+            // --------- SETUP TAGS & LAYERS ---------
+
+            content.GetChildAt("Taser_PC/PhysicsCollider").layer = LayerMask.NameToLayer("IgnorePlayerCollision");
+            content.GetChildAt("Taser_PC/PhysicsCollider/PhysicsCollider_Box").layer = LayerMask.NameToLayer("IgnorePlayerCollision");
+
+            content.SetActive(true);
+
+            initialized = true;
+        }
+        public override bool SetProperty(string name, object value)
+        {
+            if (name == "InfiniteTaser")
+            {
+                if (value is bool)
+                {
+                    properties["InfiniteTaser"] = (bool)value;
+                    return true;
+                }
+            }
+            else if (GetAvailableEventsIDs().Contains(name))
+            {
+                if (value is List<LE_Event>)
+                {
+                    properties[name] = (List<LE_Event>)value;
+                }
+            }
+			else if (name == "Ammo")
+			{
+				if (value is int)
+				{
+					properties["Ammo"] = Math.Min((int)value, 99);
+					return true;
+				}
+				else if (value is string)
+				{
+					if (int.TryParse((string)value, out int result))
+					{
+						properties["Ammo"] = Math.Min(result, 99);
+						return true;
+					}
+				}
+			}
+			else if (name == "Rotate")
+            {
+                if (value is bool)
+                {
+                    properties["Rotate"] = (bool)value;
+                    return true;
+                }
+            }
+
+
+            return base.SetProperty(name, value);
+        }
+
+        void ConfigureEvents(Gun script)
+        {
+            script.onPickup = new UnityEngine.Events.UnityEvent();
+            script.onPickup.AddListener((UnityAction)ExecuteOnPickUpEvents);
+        }
+        void ExecuteOnPickUpEvents()
+        {
+            // OnPickup is a one-shot activating event for AND logic purposes
+            eventExecuter.ExecuteEventsWithAndLogic((List<LE_Event>)properties["OnPickup"], "OnPickup", true);
+        }
+    }
+
+    // Awful patches to force the player to pickup the damn Tazer.
+    [HarmonyLib.HarmonyPatch(typeof(Controls), nameof(Controls.OnTriggerEnter))]
+    public static class TazerTutModeFix
+    {
+        public static bool Prefix(Collider collider, Controls __instance)
+        {
+            if (PlayModeController.Instance)
+            {
+                GameObject gameObject;
+                gameObject = collider ? collider.gameObject : null;
+                if (__instance.IsAlive() && gameObject)
+                {
+                    if (gameObject.CompareTag("Gun") && gameObject.transform.parent && gameObject.transform.parent.TryGetComponent<LE_Gun>(out var gun))
+                    {
+                        Logger.Log("Player just picked up Taser, patching the hell out!");
+
+                        __instance.gunController.RefreshTaserModules();
+                        gameObject.SendMessage("Pickup", SendMessageOptions.DontRequireReceiver);
+                        Controls.inGameUI.ShowNotification(InGameUIManager.NotificationType.GunPickup, InGameUIManager.NotificationColor.Blue, 0f, 1.7f, false, true);
+                        __instance.SetTazerInTutorialMode(gun.infTaser);
+                        LE_Gun.isCurrentlyInfinite = gun.infTaser;
+                        //the field was privated on modding branch, use traverse instead.
+                        Traverse.Create(__instance)
+                            .Field("gunController")
+                            .Field("tmpAmmoDefaultFontSize")
+                            .SetValue(45f);
+                        __instance.gunController.screenTextTMPLabel.gameObject.SetActive(false);
+                        __instance.gunController.screenTextTMPLabel.fontSizeMin = 45;
+                        __instance.gunController.screenTextTMPLabel.fontSize = 45;
+                        __instance.gunController.screenTextTMPLabel.gameObject.SetActive(true);
+                        __instance.gunController.SetAmmos(gun.ammo);
+                        return false;
+                    }
+                }
+
+            }
+            return true;
+
+        }
+    }
+
+    // Avoid Tazer object from rotating if "Rotate" checkbox is off
+    [HarmonyLib.HarmonyPatch(typeof(Gun), "Update")]
+    public static class TazerRotFix
+    {
+        public static bool Prefix(Gun __instance)
+        {
+            if (PlayModeController.Instance && __instance.transform.parent && __instance.transform.parent.TryGetComponent<LE_Gun>(out var gun))
+            {
+                if (!gun.rot)
+                {
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
+            }
+            return true;
+        }
+    }
+
+    [HarmonyLib.HarmonyPatch(typeof(GunController), nameof(GunController.AddAmmo))]
+    public static class TazerReloadWhenInfiniteFix
+    {
+        public static void Postfix(GunController __instance)
+        {
+            if (PlayModeController.Instance)
+            {
+                if (LE_Gun.isCurrentlyInfinite)
+                {
+                    // For some reason, GunController needs this to be 1, otherwise the infinite symbol won't appear in the ammo count.
+                    __instance.SetAmmos(1);
+                }
+            }
+        }
+    }
+}

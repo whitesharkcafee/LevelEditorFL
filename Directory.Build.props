@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <!-- =====================================================================
+         SET THIS to YOUR Fractal Space install's Managed folder, then save.
+         This is the ONLY thing you need to configure - all references resolve
+         from it, and the build still outputs straight into your Mods folder.
+
+         Find it via Steam: right-click Fractal Space > Manage > Browse local
+         files, then go into  Fractal_Space_Data\Managed  and copy that path.
+         (The default below is the standard Steam location - if that's where your
+          game is installed, you don't need to change anything.)
+         ===================================================================== -->
+    <GameManaged>G:\Apps\Steam\steamapps\common\Fractal Space\Fractal_Space_Data\Managed</GameManaged>
+  </PropertyGroup>
+</Project>

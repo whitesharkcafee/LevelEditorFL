@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.7.11925.98 stable
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FS_LevelEditor", "FS_LevelEditor.csproj", "{340F163F-4D3C-BA8B-B363-93CF1A0450F3}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release NO UNITY 6|Any CPU = Release NO UNITY 6|Any CPU
+		Release NON EXP|Any CPU = Release NON EXP|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{340F163F-4D3C-BA8B-B363-93CF1A0450F3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{340F163F-4D3C-BA8B-B363-93CF1A0450F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{340F163F-4D3C-BA8B-B363-93CF1A0450F3}.Release NO UNITY 6|Any CPU.ActiveCfg = Release NO UNITY 6|Any CPU
+		{340F163F-4D3C-BA8B-B363-93CF1A0450F3}.Release NO UNITY 6|Any CPU.Build.0 = Release NO UNITY 6|Any CPU
+		{340F163F-4D3C-BA8B-B363-93CF1A0450F3}.Release NON EXP|Any CPU.ActiveCfg = Release NON EXP|Any CPU
+		{340F163F-4D3C-BA8B-B363-93CF1A0450F3}.Release NON EXP|Any CPU.Build.0 = Release NON EXP|Any CPU
+		{340F163F-4D3C-BA8B-B363-93CF1A0450F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{340F163F-4D3C-BA8B-B363-93CF1A0450F3}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {AD7CEF45-CAB5-494D-8DAB-F6902D83FCCA}
+	EndGlobalSection
+EndGlobal

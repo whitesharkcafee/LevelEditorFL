@@ -1,0 +1,81 @@
+﻿using FractalSpace;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+using UnityEngine;
+using System.Collections;
+
+namespace FS_LevelEditor.UI_Related
+{
+    
+    public class UIButtonPatcher : MonoBehaviour
+    {
+        UIButton _button;
+        public UIButton button
+        {
+            get
+            {
+                if (!_button) _button = GetComponent<UIButton>();
+
+                return _button;
+            }
+        }
+
+        UISprite _buttonSprite;
+        public UISprite buttonSprite
+        {
+            get
+            {
+                if (!_buttonSprite) _buttonSprite = GetComponent<UISprite>();
+
+                return _buttonSprite;
+            }
+        }
+
+        UILabel _buttonLabel;
+        public UILabel buttonLabel
+        {
+            get
+            {
+                if (!_buttonLabel) _buttonLabel = gameObject.GetChildAt("Background/Label").GetComponent<UILabel>();
+                return _buttonLabel;
+            }
+        }
+
+        public Action onClick;
+
+        public void OnClick()
+        {
+            if (onClick != null)
+            {
+                onClick.Invoke();
+            }
+        }
+        void OnDestroy()
+        {
+            onClick = null;
+
+            if (gameObject.TryGetComponent<UIEventListener>(out var listener))
+            {
+                listener.onClick = null;
+                listener.onDoubleClick = null;
+                listener.onDrag = null;
+                listener.onDragEnd = null;
+                listener.onDragOut = null;
+                listener.onDragOver = null;
+                listener.onDragStart = null;
+                listener.onDrop = null;
+                listener.onHover = null;
+                listener.onKey = null;
+                listener.onPress = null;
+                listener.onScroll = null;
+                listener.onSelect = null;
+                listener.onSubmit = null;
+                listener.onTooltip = null;
+            }
+        }
+    }
+}

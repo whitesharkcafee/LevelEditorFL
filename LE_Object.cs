@@ -1,0 +1,1185 @@
+﻿using FS_LevelEditor.Editor;
+using FS_LevelEditor.Editor.UI;
+using FS_LevelEditor.Playmode;
+using FS_LevelEditor.SaveSystem;
+using FS_LevelEditor.SaveSystem.Converters;
+using FS_LevelEditor.SingleObjectLinks;
+using FS_LevelEditor.WaypointSupports;
+using HarmonyLib;
+using FractalSpace;
+using TMPro;
+using System.Diagnostics;
+using System.Reflection;
+using System.Text.Json;
+using UnityEngine;
+using System.Collections.Generic;
+using System;
+using System.Linq;
+
+namespace FS_LevelEditor
+{
+    public enum LEScene
+    {
+        Editor,
+        Playmode
+    }
+
+    
+    public class LE_Object : MonoBehaviour
+    {
+        public enum ObjectType // NEVER MODIFY THE ORDER OF ANY OF THE ELEMENTS HERE.
+        {
+            #region GROUNDS
+            GROUND,
+            CYAN_GROUND,
+            RED_GROUND,
+            ORANGE_GROUND,
+            LARGE_GROUND,
+            GROUND_2,
+            #endregion
+
+            #region WALLS
+            WALL,
+            WALL_NO_COLOR,
+            X_WALL,
+            WINDOW, // Yeah, windows are just a structure, so, I'll mark them as a wall.
+            #endregion
+
+            #region LIGHTS
+            DIRECTIONAL_LIGHT,
+            POINT_LIGHT,
+            CEILING_LIGHT,
+            #endregion
+
+            VENT_WITH_SMOKE_GREEN,
+            VENT_WITH_SMOKE_CYAN,
+            HEALTH_PACK,
+            AMMO_PACK,
+            SAW,
+            SAW_WAYPOINT,
+            SWITCH,
+            PLAYER_SPAWN,
+            CUBE,
+            LASER,
+            FLAME_TRAP,
+            COLLIDER,
+            END_TRIGGER,
+            PRESSURE_PLATE,
+            SCREEN,
+            SMALL_SCREEN,
+            BREAKABLE_WINDOW,
+			TRIGGER,
+            DOOR,
+            LASER_FIELD,
+            DOOR_V2,
+            DEATH_TRIGGER,
+            WAYPOINT,
+            JETPACK,
+            GUN,
+            ARROW,
+            MOVING_PLATFORM,
+            MOVING_PLATFORM_WAYPOINT,
+			CROW,
+            DESTRUCTIBLE_WALL,
+            BRIDGE,
+            CUBE_KILLPLANE,
+            KEYPAD,
+            MINE,
+            RGB_WALL,
+            HEAL_AREA,
+            DEATH_TRIGGER_WAYPOINT, // Even tho it's just one (the respawn point), call it waypoint so it doesn't break IsWaypoint() and such.
+            SEQUENCE,
+            SEQUENCE_WAYPOINT,
+            SEQUENCE_SCREEN,
+            POWER_CORE,
+            POWER_SLOT,
+            UPGRADE_TERMINAL,
+            XMAS_TREE
+        }
+
+        // This is used to specify the objects that use the same snap triggers.
+        public static Dictionary<string, List<ObjectType>> classifiedObjectTypes = new Dictionary<string, List<ObjectType>>()
+        {
+            { "GROUND", new List<ObjectType>(){
+                ObjectType.GROUND,
+                ObjectType.CYAN_GROUND,
+                ObjectType.RED_GROUND,
+                ObjectType.ORANGE_GROUND,
+                ObjectType.LARGE_GROUND,
+                ObjectType.GROUND_2,
+
+                ObjectType.MOVING_PLATFORM
+                } },
+            { "WALL", new List<ObjectType>(){
+                ObjectType.WALL,
+                ObjectType.WALL_NO_COLOR,
+                ObjectType.X_WALL,
+                ObjectType.WINDOW,
+                ObjectType.BREAKABLE_WINDOW,
+                ObjectType.DESTRUCTIBLE_WALL,
+                ObjectType.RGB_WALL,
+
+                ObjectType.DOOR,
+                ObjectType.DOOR_V2
+                } },
+            { "LIGHT", new List<ObjectType>(){
+                ObjectType.DIRECTIONAL_LIGHT,
+                ObjectType.POINT_LIGHT,
+                ObjectType.CEILING_LIGHT
+                } },
+            { "VENT_WITH_SMOKE", new List<ObjectType>(){
+                ObjectType.VENT_WITH_SMOKE_GREEN,
+                ObjectType.VENT_WITH_SMOKE_CYAN
+                } },
+            { "PACK", new List<ObjectType>(){
+                ObjectType.HEALTH_PACK,
+                ObjectType.AMMO_PACK
+                } }
+        };
+
+        public readonly static Dictionary<ObjectType, Type> customWaypointSupports = new Dictionary<ObjectType, Type>()
+        {
+            { ObjectType.SAW, typeof(SawWaypointSupport) },
+            { ObjectType.MOVING_PLATFORM, typeof(MovingPlatformWaypointSupport) },
+            { ObjectType.DEATH_TRIGGER, typeof(DeathTriggerWaypointSupport) },
+            { ObjectType.SEQUENCE, typeof(SequencerWaypointSupport) }
+        };
+        public readonly static Dictionary<ObjectType, Type> objectsWithSingleObjectLink = new Dictionary<ObjectType, Type>()
+        {
+            { ObjectType.SEQUENCE_SCREEN, typeof(SequencerScreenObjectLink) }
+        };
+        public readonly static Dictionary<ObjectType?, Vector3> defaultScalesForObjects = new Dictionary<ObjectType?, Vector3>()
+        {
+            { ObjectType.TRIGGER, new Vector3(3.8f, 3.8f, 0.01f) },
+            { ObjectType.DOOR, new Vector3(1f, 1.05f, 1f) },
+            { ObjectType.BREAKABLE_WINDOW, new Vector3(1, 1.065f, 1) },
+            { ObjectType.DESTRUCTIBLE_WALL, new Vector3(1, 1.065f, 1) },
+            { ObjectType.MINE, new Vector3(0.6f, 0.5f, 0.6f) }
+        };
+
+        public static Dictionary<ObjectType, HashSet<int>> alreadyUsedIDsPerType = new Dictionary<ObjectType, HashSet<int>>();
+        // Special case for waypoints, since their IDs are relative to their parent object.
+        public static Dictionary<WaypointSupport, HashSet<int>> alreadyUsedIDsForWaypoints = new Dictionary<WaypointSupport, HashSet<int>>();
+        public static Dictionary<int, List<LE_Object>> objectsPerGroup = new Dictionary<int, List<LE_Object>>();
+        public static Dictionary<int, GameObject> groupsObjectsInPlaymode = new Dictionary<int, GameObject>();
+
+        static Dictionary<ObjectType, string[]> objectsEventsIDs = new Dictionary<ObjectType, string[]>();
+        public virtual string[] EventsIDs => Array.Empty<string>();
+
+        public ObjectType? objectType;
+        public int objectID;
+        public string objectLocalizatedName
+        {
+            get
+            {
+                return Loc.Get("object." + objectType.ToString());
+            }
+        }
+        public virtual string objectFullNameWithID
+        {
+            get
+            {
+                if (GetMaxInstances(GetType()) == 1)
+                {
+                    // Since there can only be 1 instance of this object, we don't need to add the ID to the name.
+                    return objectLocalizatedName;
+                }
+                else
+                {
+                    return objectLocalizatedName + " " + objectID;
+                }
+            }
+        }
+        public virtual bool disableMeshInEditorIfIMEnabled => false;
+
+        public bool setActiveAtStart = true;
+        public bool collision = true;
+        public bool invisibleMesh = false;
+        public bool startMovingAtStart = false;
+        public float movingSpeed = 5f;
+        public float startDelay = 0f;
+        public float waitTime = 0f;
+        public WaypointMode waypointMode;
+        public bool carriesPlayer = true;
+        public int? groupID = null; // Null for "no group".
+
+        public Dictionary<string, object> properties = new Dictionary<string, object>();
+        public List<WaypointData> waypoints = new List<WaypointData>();
+        
+        public EventExecuter eventExecuter;
+        public WaypointSupport waypointSupport;
+        public WaypointSupport customWaypointSupport;
+        public SingleObjectLink objectLink;
+        public SingleObjectLink otherObjThisIsLinkedTo;
+        public virtual Transform objectParent
+        {
+            get
+            {
+                if (groupID.HasValue && PlayModeController.Instance && groupsObjectsInPlaymode.TryGetValue(groupID.Value, out var groupObj))
+                    return groupObj.transform;
+
+                if (EditorController.Instance != null) return EditorController.Instance.levelObjectsParent.transform;
+                else if (PlayModeController.Instance != null) return PlayModeController.Instance.levelObjectsParent.transform;
+
+                return null;
+            }
+        }
+        public virtual string contentObjectName => "Content";
+        public GameObject contentObject
+        {
+            get
+            {
+                return gameObject.GetChild(contentObjectName);
+            }
+        }
+        public bool canUndoDeletion { get; protected set; }  = true;
+        public bool canBeUsedInEventsTab { get; protected set; } = true;
+        public bool canBeDisabledAtStart { get; protected set; } = true;
+        public bool canHaveWaypoints { get; protected set; } = true;
+
+        public bool initialized = false;
+        bool hasItsOwnClass = false;
+        bool onInstantiatedCalled = false;
+        public bool isDeleted = false;
+
+        public bool currentCollisionState = true;
+        public LE_Object() { }
+
+        #region Object Templates References
+        public static Ammo t_ammoPack;
+        public static Health t_healthPack;
+        public static ScieScript t_saw;
+        public static InterrupteurController t_switch;
+        public static BlocScript t_cube;
+        public static Laser_H_Controller t_laser;
+        public static Laser_H_Controller t_mine;
+        public static RealtimeCeilingLight t_ceilingLight;
+        public static FlameTrapController t_flameTrap;
+        public static BlocSwitchScript t_pressurePlate;
+        public static ScreenController t_screen;
+        public static BreakableWindowController t_window;
+        public static DestructibleWall t_breakableWall;
+		public static PorteScript t_door;
+        public static PorteScript t_doorV2;
+        public static MovingPlatformController t_movingPlatform;
+		public static KeycodeController t_keycodeM;
+		public static InterrupteurController t_keycode;
+		public static BridgeController t_bridge;
+        public static PowerCoreBlocController t_powerCoreBloc;
+        public static SequenceSwitchController t_sequenceController;
+        public static BlocSwitchScript t_blocSwitchScript;
+        public static BlocScript t_powerCore;
+        public static PowerCoreController t_powerSlot;
+        public static InterrupteurController t_upgradeTerminal;
+
+        public static void GetTemplatesReferences()
+		{
+			t_ammoPack = FindObjectOfType<Ammo>();
+			t_healthPack = FindObjectOfType<Health>();
+			t_saw = FindObjectOfType<ScieScript>();
+			t_switch = FindObjectOfType<InterrupteurController>();
+			t_cube = Utils.FindObjectOfType<BlocScript>(x => x.IsCube());
+			t_laser = FindObjectOfType<Laser_H_Controller>();
+            t_mine = Utils.FindObjectOfType<Laser_H_Controller>(x => x.isMine);
+			t_ceilingLight = FindObjectOfType<RealtimeCeilingLight>();
+			t_flameTrap = FindObjectOfType<FlameTrapController>();
+			t_pressurePlate = Utils.FindObjectOfType<BlocSwitchScript>(x => x.m_associatedSequencer == null);
+			t_screen = FindObjectOfType<ScreenController>();
+			t_window = Utils.FindObjectOfType<BreakableWindowController>(x => x.name.Contains("BreakableWindow"));
+			t_door = Utils.FindObjectOfType<PorteScript>(x => !x.isSkinV2);
+			t_doorV2 = Utils.FindObjectOfType<PorteScript>(x => x.isSkinV2);
+			t_movingPlatform = Utils.FindObjectOfType<MovingPlatformController>(x => x.movingPlatform);
+			t_breakableWall = FindObjectOfType<DestructibleWall>();
+			t_keycodeM = Utils.FindObjectOfType<KeycodeController>(x => x.gameObject.layer == LayerMask.NameToLayer("MiniGames"));
+			t_keycode = Utils.FindObjectOfType<InterrupteurController>(x => x.CompareTag("Keypad"));
+			t_bridge = FindObjectOfType<BridgeController>();
+            t_powerCoreBloc = FindObjectOfType<PowerCoreBlocController>();
+            t_sequenceController = FindObjectOfType<SequenceSwitchController>();
+            t_blocSwitchScript = Utils.FindObjectOfType<BlocSwitchScript>(x => x.m_associatedSequencer != null);
+            t_powerCore = Utils.FindObjectOfType<BlocScript>(x => x.isPowerCore);
+            t_powerSlot = Utils.FindObjectOfType<PowerCoreController>(x => !x.isTabletSlot);
+            t_upgradeTerminal = Utils.FindObjectOfType<InterrupteurController>(x => x.name.Contains("Upgrade"));
+        }
+		#endregion
+
+		public virtual void Start()
+        {
+            if (EditorController.Instance && !onInstantiatedCalled) OnInstantiated(LEScene.Editor);
+            else if (PlayModeController.Instance && !onInstantiatedCalled) OnInstantiated(LEScene.Playmode);
+
+            if (hasItsOwnClass)
+            {
+                if (Utils.IsOverridingMethod(this.GetType(), "Start"))
+                {
+                    Logger.Error($"\"{GetType().Name}\" is overriding Start() method, this is not allowed, please use ObjectStart() instead.");
+                }
+
+                // ObjectStart is only called when the object is ACTUALLY being spawned, since Start() is also called when loading the
+                // level in playmode to init the component.
+                if (gameObject.activeSelf || EditorController.Instance)
+                {
+                    if (EditorController.Instance) ObjectStart(LEScene.Editor);
+                    else if (PlayModeController.Instance) ObjectStart(LEScene.Playmode);
+                }
+            }
+            else
+            {
+                // ObjectStart is only called when the object is ACTUALLY being spawned, since Start() is also called when loading the
+                // level in playmode to init the component.
+                if (gameObject.activeSelf || EditorController.Instance)
+                {
+                    if (EditorController.Instance) ObjectStart(LEScene.Editor);
+                    else if (PlayModeController.Instance) ObjectStart(LEScene.Playmode);
+                }
+            }
+        }
+        void Init(ObjectType objectType, Type objectInternalType)
+        {
+            if (EditorController.Instance != null && PlayModeController.Instance == null)
+            {
+                EditorController.Instance.currentInstantiatedObjects.Add(this);
+            }
+            else if (EditorController.Instance == null && PlayModeController.Instance != null)
+            {
+                PlayModeController.Instance.currentInstantiatedObjects.Add(this);
+            }
+
+            // Assign object properties if it has.
+            if (Utils.CallStaticMethodIfExists(objectInternalType, "GetDefaultProperties", out var props))
+            {
+                properties = (Dictionary<string, object>)props;
+            }
+
+            SetNameAndType(objectType, LevelData.IsCurrentlyLoadingData);
+
+            if (PlayModeController.Instance != null)
+            {
+                // Destroy the snap triggers of this object.
+                Destroy(gameObject.GetChild("SnapTriggers"));
+            }
+
+            // If greater than 0 that means this object DOES support events.
+            if (GetAvailableEventsIDs().Length > 0)
+            {
+                eventExecuter = gameObject.AddComponent<EventExecuter>();
+            }
+
+            if (canHaveWaypoints)
+            {
+                waypointSupport = gameObject.AddComponent<WaypointSupport>();
+                if (customWaypointSupports.ContainsKey(objectType))
+                {
+                    customWaypointSupport = (WaypointSupport)gameObject.AddComponent(customWaypointSupports[objectType]);
+                }
+            }
+
+            if (objectsWithSingleObjectLink.ContainsKey(objectType))
+            {
+                objectLink = (SingleObjectLink)gameObject.AddComponent(objectsWithSingleObjectLink[objectType]);
+            }
+        }
+
+        void OnDestroy()
+        {
+            properties.Clear();
+            properties = null;
+            waypoints.Clear();
+            waypoints = null;
+
+            eventExecuter = null;
+            waypointSupport = null;
+            customWaypointSupport = null;
+            objectLink = null;
+            otherObjThisIsLinkedTo = null;
+        }
+
+        static Dictionary<Type, System.Type> LETypesIn = new Dictionary<Type, System.Type>();
+        /// <summary>
+        /// The correct way to add a LE_Object component to a GameObject.
+        /// </summary>
+        /// <param name="targetObj">The GameObject ot attach this component to.</param>
+        /// <param name="originalObjName">THe "original" name of the desired object.</param>
+        /// <returns>An instance of the created LE_Object component class.</returns>
+        public static LE_Object AddComponentToObject(GameObject targetObj, ObjectType objectType)
+        {
+            string className = "LE_" + Utils.ObjectTypeToFormatedName(objectType).Replace(' ', '_');
+            Type classType = Type.GetType("FS_LevelEditor." + className);
+
+            if (classType != null)
+            {
+                if (HasReachedObjectLimit(classType))
+                {
+                    Utils.ShowCustomNotificationRed("Object limit reached for this object.", 2f);
+                    return null;
+                }
+                if (!LETypesIn.ContainsKey(classType))
+                {
+                    LETypesIn.Add(classType, classType);
+                }
+                LE_Object instancedComponent = (LE_Object)targetObj.AddComponent(LETypesIn[classType]);
+                instancedComponent.Init(objectType, classType);
+                instancedComponent.hasItsOwnClass = true;
+                return instancedComponent;
+            }
+            else
+            {
+                LE_Object instancedComponent = targetObj.AddComponent<LE_Object>();
+                instancedComponent.Init(objectType, null);
+                return instancedComponent;
+            }
+        }
+
+        void SetNameAndType(ObjectType objectTypeToSet, bool fromSave)
+        {
+            objectType = objectTypeToSet;
+
+            // Get next ID only when NOT loading data, cause otherwise the id would be overwritten by the loading logic.
+            if (!fromSave)
+            {
+                if (this is LE_Waypoint waypoint)
+                {
+                    if (!waypoint.mainSupport) // Safety check.
+                        waypoint.mainSupport = waypoint.GetMainSupport();
+
+                    if (!alreadyUsedIDsForWaypoints.ContainsKey(waypoint.mainSupport))
+                        alreadyUsedIDsForWaypoints.Add(waypoint.mainSupport, new HashSet<int>());
+
+                    int id = 0;
+                    while (alreadyUsedIDsForWaypoints[waypoint.mainSupport].Contains(id))
+                        id++;
+                    alreadyUsedIDsForWaypoints[waypoint.mainSupport].Add(id);
+
+                    objectID = id;
+                }
+                else
+                {
+                    if (!alreadyUsedIDsPerType.ContainsKey(objectTypeToSet))
+                        alreadyUsedIDsPerType.Add(objectTypeToSet, new HashSet<int>());
+
+                    int id = 1;
+                    while (alreadyUsedIDsPerType[objectTypeToSet].Contains(id))
+                        id++;
+                    alreadyUsedIDsPerType[objectTypeToSet].Add(id);
+
+                    objectID = id;
+                }
+            }
+            else
+            {
+                // Just ensure the entry is created, just in case.
+                if (this is LE_Waypoint waypoint)
+                {
+                    if (!waypoint.mainSupport) // Safety check.
+                        waypoint.mainSupport = waypoint.GetMainSupport();
+
+                    if (!alreadyUsedIDsForWaypoints.ContainsKey(waypoint.mainSupport))
+                        alreadyUsedIDsForWaypoints.Add(waypoint.mainSupport, new HashSet<int>());
+                }
+                else
+                {
+                    if (!alreadyUsedIDsPerType.ContainsKey(objectTypeToSet))
+                        alreadyUsedIDsPerType.Add(objectTypeToSet, new HashSet<int>());
+                }
+            }
+
+            gameObject.name = objectFullNameWithID;
+
+            // Removed the "Multiple Objects With The Same ID" error popup check because it's unlikely it'll happen with this system.
+        }
+        public static ObjectType? ConvertNameToObjectType(string objName)
+        {
+            string objTypeName = objName.ToUpper().Replace(' ', '_');
+            if (Enum.TryParse<ObjectType>(objTypeName, true, out ObjectType result))
+            {
+                return result;
+            }
+            else
+            {
+                Logger.Error($"Couldn't convert object name \"{objName}\" to a valid ObjectType, returning null.");
+                return null;
+            }
+        }
+        public static List<ObjectType?> GetObjectTypesForSnapToGrid(string targetObjType)
+        {
+            if (classifiedObjectTypes.ContainsKey(targetObjType))
+            {
+                return classifiedObjectTypes[targetObjType].Cast<ObjectType?>().ToList();
+            }
+
+            if (Enum.TryParse<ObjectType>(targetObjType, true, out ObjectType result))
+            {
+                return new List<ObjectType?>() { result };
+            }
+
+            return new List<ObjectType?>();
+        }
+        static bool HasReachedObjectLimit(Type objectCompType)
+        {
+            FieldInfo currentInstancesField = objectCompType.GetField("currentInstances", BindingFlags.NonPublic | BindingFlags.Static);
+            FieldInfo maxInstancesField = objectCompType.GetField("maxInstances", BindingFlags.NonPublic | BindingFlags.Static);
+
+            int currentInstances = currentInstancesField != null ? (int)currentInstancesField.GetValue(null) : 0;
+            int maxInstances = maxInstancesField != null ? (int)maxInstancesField.GetValue(null) : 99999;
+
+            return currentInstances >= maxInstances;
+        }
+        static int GetMaxInstances(Type objectCompType)
+        {
+            FieldInfo maxInstancesField = objectCompType.GetField("maxInstances", BindingFlags.NonPublic | BindingFlags.Static);
+            int maxInstances = maxInstancesField != null ? (int)maxInstancesField.GetValue(null) : 99999;
+
+            return maxInstances;
+        }
+
+        #region Virtual Methods
+        /// <summary>
+        /// Called at the start of the level, even if the object is disabled. Properties are already loaded when called. DON'T USE AS THE Awake() METHOD.
+        /// </summary>
+        /// <param name="scene">The scene type is being loaded.</param>
+        public virtual void OnInstantiated(LEScene scene)
+        {
+            if (scene == LEScene.Editor)
+            {
+                SetCollidersState(false);
+                SetEditorCollider(true);
+                // No need to call SetMeshRenderersState since they're ok by default.
+            }
+            else if (scene == LEScene.Playmode)
+            {
+                SetEditorCollider(false);
+                if (!initialized) InitComponent();
+            }
+
+            // Colliders are enabled by default.
+            if (!collision && scene == LEScene.Playmode)
+            {
+                SetCollidersState(false);
+            }
+            if (invisibleMesh && (scene == LEScene.Playmode || disableMeshInEditorIfIMEnabled))
+            {
+                SetMeshRenderersState(false);
+            }
+
+            if (groupID.HasValue)
+            {
+                SetGroup(groupID);
+            }
+
+            if (eventExecuter) eventExecuter.OnInstantiated(scene);
+            if (waypointSupport) waypointSupport.OnInstantiated(scene);
+            if (customWaypointSupport) customWaypointSupport.OnInstantiated(scene);
+
+            onInstantiatedCalled = true;
+        }
+        /// <summary>
+        /// Use this to initialize the components/data of the object.
+        /// </summary>
+        public virtual void InitComponent()
+        {
+            initialized = true;
+        }
+        /// <summary>
+        /// Called at the start of the level if the level is enabled at start, if disabled, called until the object is enabled for the first time. USE THIS AS THE Start() METHOD.
+        /// </summary>
+        /// <param name="scene">The scene type is being loaded.</param>
+        public virtual void ObjectStart(LEScene scene)
+        {
+            if (waypointSupport) waypointSupport.ObjectStart(scene);
+            if (customWaypointSupport) customWaypointSupport.ObjectStart(scene);
+            if (invisibleMesh && scene == LEScene.Playmode)
+            {
+                SetMeshRenderersState(false);
+            }
+        }
+
+        public bool SetPropertyBase(string name, object value)
+        {
+            if (name == "StartMovingAtStart")
+            {
+                startMovingAtStart = (bool)value;
+                return true;
+            }
+            else if (name == "MovingSpeed")
+            {
+                movingSpeed = Utils.ParseFloat(value.ToString());
+                return true;
+            }
+            else if (name == "StartDelay")
+            {
+                startDelay = Utils.ParseFloat(value.ToString());
+                return true;
+            }
+            else if (name == "WaitTime")
+            {
+                waitTime = Utils.ParseFloat(value.ToString());
+                return true;
+            }
+            else if (name == "WaypointMode")
+            {
+                waypointMode = (WaypointMode)value;
+                return true;
+            }
+            else if (name == "CarriesPlayer")
+            {
+                carriesPlayer = (bool)value;
+                return true;
+            }
+
+            return false;
+        }
+        /// <summary>
+        /// Sets a property inside of the object properties list if it exists.
+        /// </summary>
+        /// <param name="name">The name of the property to set.</param>
+        /// <param name="value">The value of the property, it need to be the same as the expected depending of the property name. It also can manage some conversions.</param>
+        /// <returns>True ff the property was setted correctly or false if there's some invalid value.</returns>
+        public virtual bool SetProperty(string name, object value)
+        {
+            if (properties.ContainsKey(name) && value is JsonElement)
+            {
+                Type toConvert = properties[name].GetType();
+                object converted = LEPropertiesConverterNew.NewDeserealize(toConvert, (JsonElement)value);
+                if (converted != null)
+                {
+                    // converted should be an original value OR an object with a custom serialization type (ColorSerializable), convert it back to original.
+                    Utils.CallMethodIfOverrided(typeof(LE_Object), this, nameof(SetProperty), name, SavePatches.ConvertFromSerializableValue(converted));
+                    return true;
+                }
+            }
+
+            return SetPropertyBase(name, value);
+        }
+        /// <summary>
+        /// Gets a property from the object properties list.
+        /// </summary>
+        /// <param name="name">The name of property to get if it exists.</param>
+        /// <returns>The value of the property in the list, without any conversions.</returns>
+        public virtual object GetProperty(string name)
+        {
+            if (properties.ContainsKey(name))
+            {
+                return properties[name];
+            }
+            else
+            {
+                Logger.Error($"Couldn't find property of name \"{name}\" for object with name: \"{objectFullNameWithID}\"");
+                return null;
+            }
+        }
+        public virtual T GetProperty<T>(string name)
+        {
+            if (properties.ContainsKey(name))
+            {
+                if (properties[name] is T)
+                {
+                    return (T)properties[name];
+                }
+                else
+                {
+                    Logger.Error($"The property of name \"{name}\" couldn't be casted to \"{typeof(T).Name}\" for object with name: \"{objectFullNameWithID}\".");
+                    return default(T);
+                }
+            }
+            else
+            {
+                Logger.Error($"Couldn't find property of name \"{name}\" OF TYPE \"{typeof(T).Name}\" for object with name: \"{objectFullNameWithID}\".");
+                return default(T);
+            }
+        }
+        public bool TryGetProperty(string name, out object value)
+        {
+            if (properties.ContainsKey(name))
+            {
+                value = GetProperty(name);
+                return true;
+            }
+            else
+            {
+                value = null;
+                return false;
+            }
+        }
+
+        public virtual bool TriggerAction(string actionName)
+        {
+            if (actionName == "SetActive_True")
+            {
+                gameObject.SetActive(true);
+            }
+            else if (actionName == "SetActive_False")
+            {
+                gameObject.SetActive(false);
+            }
+            else if (actionName == "ToggleActive")
+            {
+                gameObject.SetActive(!gameObject.activeSelf);
+            }
+            else if (actionName == "SetColliderState_True")
+            {
+                SetCollidersState(true);
+            }
+            else if (actionName == "SetColliderState_False")
+            {
+                SetCollidersState(false);
+            }
+            else if (actionName == "ToggleColliderState")
+            {
+                SetCollidersState(!currentCollisionState);
+            }
+            else if (actionName == "ManageEvents")
+            {
+                EventsUIPageManager.Instance.ShowEventsPage(this);
+                return true;
+            }
+            else if (actionName == "OnEventsTabClose" || actionName == "OnSelectTargetObjWithClickBtnClick")
+            {
+                eventExecuter.CreateInEditorLinksToTargetObjects();
+                // Since we're on SELECTING_TARGET_OBJ state, editor links positions won't be updated automatically, updaate it ONE TIME ONLY, since you can't move objects in this state.
+                if (actionName == "OnSelectTargetObjWithClickBtnClick")
+                {
+                    eventExecuter.UpdateEditorLinksPositions();
+                }
+                return true;
+            }
+
+            return false;
+        }
+
+        public virtual void OnSelect()
+        {
+            if (canBeDisabledAtStart) gameObject.SetOpaqueMaterials();
+
+            if (eventExecuter) eventExecuter.OnSelect();
+            if (waypointSupport) waypointSupport.OnSelect();
+            if (customWaypointSupport) customWaypointSupport.OnSelect();
+            if (objectLink) objectLink.OnSelect();
+            if (otherObjThisIsLinkedTo) otherObjThisIsLinkedTo.OnSelect();
+        }
+        public virtual void OnDeselect(GameObject nextSelectedObj)
+        {
+            if (canBeDisabledAtStart)
+            {
+                if (!setActiveAtStart)
+                {
+                    gameObject.SetTransparentMaterials();
+                }
+                else
+                {
+                    gameObject.SetOpaqueMaterials();
+                }
+            }
+
+            if (eventExecuter) eventExecuter.OnDeselect();
+            if (waypointSupport) waypointSupport.OnDeselect();
+            if (customWaypointSupport) customWaypointSupport.OnDeselect();
+            if (objectLink) objectLink.OnDeselect();
+            if (otherObjThisIsLinkedTo) otherObjThisIsLinkedTo.OnDeselect();
+        }
+        public virtual void OnDelete()
+        {
+            if (canUndoDeletion)
+            {
+                SetGroup(null, false); // TEMPORALY remove the object from the group.
+                isDeleted = true;
+            }
+            else
+            {
+                if (EditorController.Instance != null && PlayModeController.Instance == null)
+                {
+                    EditorController.Instance.currentInstantiatedObjects.Remove(this);
+                }
+                else if (EditorController.Instance == null && PlayModeController.Instance != null)
+                {
+                    PlayModeController.Instance.currentInstantiatedObjects.Remove(this);
+                }
+
+                SetGroup(null);
+            }
+        }
+        public virtual void OnUndoDeletion()
+        {
+            if (!canUndoDeletion)
+            {
+                Logger.Error("Dunno how you were able to undo deletion for an object of name " + name + ", but please report it.");
+                return;
+            }
+
+            if (groupID.HasValue) SetGroup(groupID.Value); // Re-add the object to the group where it was before being deleted.
+
+            isDeleted = false;
+        }
+        public virtual void BeforeSave()
+        {
+            if (waypointSupport) waypointSupport.BeforeSave();
+            if (customWaypointSupport) customWaypointSupport.BeforeSave();
+        }
+        public virtual void OnObjectLinkTargetChanged(LE_Object newTarget)
+        {
+
+        }
+        #endregion
+
+        public string[] GetAvailableEventsIDs()
+        {
+            // objectType SHOULDN'T be null ever, but just in case.
+            if (!objectType.HasValue)
+                return null;
+
+            if (!objectsEventsIDs.TryGetValue(objectType.Value, out string[] ids))
+            {
+                ids = EventsIDs;
+                objectsEventsIDs.Add(objectType.Value, ids);
+            }
+
+            return ids;
+        }
+
+        public enum LEObjectContext { PREVIEW, SELECT, NORMAL }
+        public static Color GetDefaultObjectColor(LEObjectContext context)
+        {
+            switch (context)
+            {
+                case LEObjectContext.PREVIEW:
+                    return new Color(0f, 0.666f, 0.894f, 1f);
+
+                case LEObjectContext.SELECT:
+                    return new Color(0f, 1f, 0f);
+
+                case LEObjectContext.NORMAL:
+                    return new Color(1f, 1f, 1f);
+            }
+
+            return new Color(1f, 1f, 1f);
+        }
+        public static Color GetObjectColorForObject(ObjectType objectType, LEObjectContext context)
+        {
+            string className = "LE_" + Utils.ObjectTypeToFormatedName(objectType).Replace(' ', '_');
+            Type classType = Type.GetType("FS_LevelEditor." + className);
+
+            if (classType != null)
+            {
+                var flags = BindingFlags.Static
+                    | BindingFlags.Public
+                    | BindingFlags.NonPublic
+                    | BindingFlags.DeclaredOnly;
+
+                MethodInfo method = classType.GetMethod(nameof(GetDefaultObjectColor), flags);
+                if (method != null)
+                {
+                    return (Color)method.Invoke(null, new object[] { context });
+                }
+                else // If it's null is prolly 'cause the class doesn't have the method declared, so, just use the default implementation.
+                {
+                    return GetDefaultObjectColor(context);
+                }
+            }
+            else
+            {
+                return GetDefaultObjectColor(context);
+            }
+        }
+        public virtual void SetObjectColor(LEObjectContext context)
+        {
+            foreach (var renderer in gameObject.TryGetComponents<MeshRenderer>())
+            {
+                // Skip the waypoints, since they're OTHER objects, it's just they're inside of this main object, but whatever.
+                if (canHaveWaypoints)
+                {
+                    if (waypointSupport && renderer.transform.IsChildOf(waypointSupport.waypointsParent)) continue;
+                    if (customWaypointSupport && renderer.transform.IsChildOf(customWaypointSupport.waypointsParent)) continue;
+                }
+
+                var materials = renderer.sharedMaterials;
+                for (int i = 0; i < materials.Length; i++)
+                {
+                    if (!materials[i].HasProperty("_Color")) continue;
+
+                    Color toSet = LE_Object.GetObjectColorForObject(objectType.Value, context);
+                    toSet.a = materials[i].color.a;
+
+                    materials[i] = MaterialUtils.GetMaterialWithColor(materials[i], toSet);
+                }
+                renderer.sharedMaterials = materials;
+            }
+        }
+        public static void SetObjectColor(GameObject obj, ObjectType objectType, LEObjectContext context)
+        {
+            foreach (var renderer in obj.TryGetComponents<MeshRenderer>())
+            {
+                var materials = renderer.sharedMaterials;
+                for (int i = 0; i < materials.Length; i++)
+                {
+                    if (!materials[i].HasProperty("_Color")) continue;
+
+                    Color toSet = LE_Object.GetObjectColorForObject(objectType, context);
+                    toSet.a = materials[i].color.a;
+
+                    materials[i] = MaterialUtils.GetMaterialWithColor(materials[i], toSet);
+                }
+                renderer.sharedMaterials = materials;
+            }
+        }
+
+        // Default implementation of SetCollidersState.
+        public void SetCollidersState(bool newEnabledState)
+        {
+            if (!gameObject.ExistsChild(contentObjectName))
+            {
+                if (!IsWaypoint(objectType.Value)) Logger.Error($"\"{objectType}\" object doesn't contain a Content object for some reason???");
+                return;
+            }
+
+            if (hasItsOwnClass && Utils.IsOverridingMethod(GetType(), nameof(SetCollidersStateForEdgeCase)))
+            {
+                SetCollidersStateForEdgeCase(newEnabledState);
+            }
+            else // Default implementation.
+            {
+                foreach (var collider in contentObject.TryGetComponents<Collider>(true))
+                {
+                    collider.enabled = newEnabledState;
+                }
+            }
+
+            currentCollisionState = newEnabledState;
+        }
+        /// <summary>
+        /// SetCollidersState should work like 99% of the time, except for some edge cases where it doesn't work for some objects for some stupid reason.
+        /// DON'T CALL THIS FUNCTION DIRECTLY, CALL SetCollidersState INSTEAD!
+        /// </summary>
+        /// <param name="newEnabledState"></param>
+        public virtual void SetCollidersStateForEdgeCase(bool newEnabledState)
+        {
+            Logger.Warning($"SetCollidersStateForEdgeCase BASE function was called for object of type: \"{objectType}\". This shouldn't happend!");
+        }
+        public void SetEditorCollider(bool newEnabledState)
+        {
+            if (IsWaypoint(objectType.Value)) return;
+
+            if (gameObject.ExistsChild("EditorCollider"))
+            {
+                gameObject.GetChild("EditorCollider").SetActive(newEnabledState);
+            }
+            else
+            {
+                Logger.Error($"\"{objectType}\" object doesn't contain an EditorCollider.");
+            }
+        }
+
+        public void SetMeshRenderersState(bool newEnabledState)
+        {
+            // Early return for waypoints
+            if (objectType.HasValue && IsWaypoint(objectType.Value))
+            {
+                return;
+            }
+
+            if (!contentObject)
+            {
+                Logger.Error($"\"{objectType}\" object doesn't contain a Content object for some reason???");
+                return;
+            }
+
+            // Get all mesh renderers recursively from content
+            MeshRenderer[] renderers = contentObject.TryGetComponents<MeshRenderer>(true);
+            if (renderers == null || renderers.Length == 0)
+            {
+                return; // No renderers to modify
+            }
+
+            foreach (var renderer in renderers)
+            {
+                if (renderer == null)
+                    continue; // Skip null renderers
+
+                if (objectType == ObjectType.SEQUENCE)
+                {
+                    if (renderer.name == "Mesh" && renderer.transform.parent && renderer.transform.parent.name == "LEDIndicatorPrefab")
+                        continue; // Skip the sequencer LED Indicator Prefab.
+                }
+
+                if (renderer.gameObject.TryGetComponent<TextMeshPro>(out var tmpro))
+                {
+                    // This renderer is for text, skip.
+                    if (tmpro.renderer == renderer) continue;
+                }
+
+                // Skip waypoint renderers if this object has waypoints
+                if (canHaveWaypoints)
+                {
+                    if (waypointSupport != null && waypointSupport.waypointsParent != null &&
+                        renderer.transform.IsChildOf(waypointSupport.waypointsParent))
+                    {
+                        continue;
+                    }
+
+                    if (customWaypointSupport != null && customWaypointSupport.waypointsParent != null &&
+                        renderer.transform.IsChildOf(customWaypointSupport.waypointsParent))
+                    {
+                        continue;
+                    }
+                }
+
+                // If disabling, remove all materials
+                if (!newEnabledState)
+                {
+                    // Add enforcer component using GetComponent instead of TryGetComponent
+                    if (renderer.gameObject != null)
+                    {
+                        var existingEnforcer = renderer.gameObject.GetComponent<DisabledMeshEnforcer>();
+                        if (existingEnforcer == null)
+                        {
+                            var enforcer = renderer.gameObject.AddComponent<DisabledMeshEnforcer>();
+                            if (enforcer != null)
+                            {
+                                enforcer.targetRenderer = renderer;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // If enabling, remove the enforcer component if it exists using GetComponent
+                    if (renderer.gameObject != null)
+                    {
+                        var enforcer = renderer.gameObject.GetComponent<DisabledMeshEnforcer>();
+                        if (enforcer != null)
+                        {
+                            Destroy(enforcer);
+                        }
+                    }
+                }
+
+                // Set the renderer enabled state
+                renderer.enabled = newEnabledState;
+            }
+        }
+
+        /// <summary>
+        /// Sets the group of this object to another one.
+        /// </summary>
+        /// <param name="newGroupID">The ID of the group. NULL if you wan't to remove it.</param>
+        public void SetGroup(int? newGroupID, bool updateGlobalVariable = true)
+        {
+            // IN CASE IT'S TRYING TO REMOVE THE CURRENT GROUP.
+            if (!newGroupID.HasValue && groupID.HasValue) // trying to remove the group if the object already has one.
+            {
+                if (objectsPerGroup.TryGetValue(groupID.Value, out var objectsInTheGroup))
+                {
+                    objectsInTheGroup.Remove(this);
+                    if (updateGlobalVariable)
+                        groupID = null;
+                    if (PlayModeController.Instance) transform.parent = objectParent; // objectParent will return the "normal" parent by now, since now groupID is null.
+                }
+                if (updateGlobalVariable)
+                    groupID = null;
+                return;
+            }
+
+            if (!newGroupID.HasValue) return;
+
+            if (!objectsPerGroup.ContainsKey(newGroupID.Value)) objectsPerGroup.Add(newGroupID.Value, new List<LE_Object>());
+            objectsPerGroup[newGroupID.Value].Add(this);
+
+            // Add to the group parent if in playmode.
+            if (PlayModeController.Instance)
+            {
+                GameObject groupObj = null;
+                if (!groupsObjectsInPlaymode.TryGetValue(newGroupID.Value, out groupObj))
+                {
+                    groupObj = new GameObject($"Group {newGroupID.Value}");
+                    groupObj.transform.parent = PlayModeController.Instance.levelObjectsParent.transform;
+                    groupsObjectsInPlaymode.Add(newGroupID.Value, groupObj);
+                }
+
+                transform.parent = groupObj.transform;
+            }
+
+            if (updateGlobalVariable) 
+                groupID = newGroupID;
+        }
+
+        public static void ResetStaticVariablesInObjects()
+        {
+            alreadyUsedIDsPerType.Clear();
+            alreadyUsedIDsForWaypoints.Clear();
+            objectsPerGroup.Clear();
+            groupsObjectsInPlaymode.Clear();
+
+            LE_Breakable_Window.staticVariablesInitialized = false;
+
+            LE_Upgrade_Terminal.ResetStaticVariables();
+        }
+
+        public static bool IsWaypoint(ObjectType type)
+        {
+            return type.ToString().Contains("Waypoint", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool ObjectsAreOfTheSameType(params LE_Object[] objects)
+        {
+            if (objects == null || objects.Length <= 1) return true;
+
+            var firstType = objects[0]?.GetType();
+            for (int i = 1; i < objects.Length; i++)
+            {
+                if (objects[i]?.GetType() != firstType)
+                    return false;
+            }
+
+            return true;
+        }
+        public static bool ObjectsHaveTheSameGroupID(out int? groupID, params LE_Object[] objects)
+        {
+            groupID = null;
+
+            if (objects == null || objects.Length == 0)
+                return false;
+
+            groupID = objects[0].groupID;
+
+            if (objects.Length == 1)
+                return true;
+
+            int? first = objects[0].groupID;
+
+            for (int i = 1; i < objects.Length; i++)
+            {
+                if (objects[i].groupID != first)
+                {
+                    groupID = null;
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        public bool HasWaypoints()
+        {
+            return waypoints.Count > 0;
+        }
+    }
+
+    
+    public class DisabledMeshEnforcer : MonoBehaviour
+    {
+        public MeshRenderer targetRenderer;
+
+        void LateUpdate()
+        {
+            // Safety check: if component or renderer is destroyed, destroy this enforcer
+            if (targetRenderer == null)
+            {
+                Destroy(this);
+                return;
+            }
+
+            // If the renderer somehow got enabled, force it back to disabled
+            if (targetRenderer.enabled)
+            {
+                targetRenderer.enabled = false;
+            }
+        }
+    }
+}

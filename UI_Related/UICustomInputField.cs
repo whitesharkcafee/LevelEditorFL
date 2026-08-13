@@ -1,0 +1,273 @@
+﻿using FractalSpace;
+using HarmonyLib;
+using System;
+using System.Collections.Generic;
+using System.Text;
+using System.Threading.Tasks;
+using UnityEngine;
+
+namespace FS_LevelEditor.UI_Related
+{
+    
+    public class UICustomInputField : MonoBehaviour
+    {
+        public enum UIInputType
+        {
+            HEX_COLOR,
+            NON_NEGATIVE_INT,
+            NON_NEGATIVE_FLOAT,
+            INT,
+            FLOAT,
+            PLAIN_TEXT
+        }
+
+        public UIInput input { get; private set; }
+        public UIInputType inputType { get; private set; }
+        public bool isValid { get; private set; }
+        bool initialized = false;
+
+        UISprite fieldSprite;
+        public Color validValueColor { get; private set; } = new Color(0.0588f, 0.3176f, 0.3215f, 0.9412f);
+        public Color invalidValueColor { get; private set; } = new Color(0.3215f, 0.2156f, 0.0588f, 0.9415f);
+        public bool setFieldColorAutomatically = true;
+
+        public Action onSelected;
+        public Action onChange;
+        public Action onSubmit;
+        public Action onDeselected;
+        bool executeOnChange = true;
+
+        void Awake()
+        {
+            input = GetComponent<UIInput>();
+            fieldSprite = GetComponent<UISprite>();
+        }
+        void OnDestroy()
+        {
+            onSelected = null;
+            onChange = null;
+            onSubmit = null;
+            onDeselected = null;
+        }
+
+        public void Setup(UIInputType type, string defaultText = null, int maxDecimals = 0)
+        {
+            inputType = type;
+
+            if (!input)
+            {
+                input = GetComponent<UIInput>();
+                fieldSprite = GetComponent<UISprite>();
+            }
+
+            switch (type)
+            {
+                case UIInputType.HEX_COLOR:
+                    input.validation = UIInput.Validation.Alphanumeric;
+                    input.characterLimit = 6;
+                    break;
+
+                case UIInputType.NON_NEGATIVE_INT:
+                    input.onValidate = (UIInput.OnValidate)NGUI_Utils.ValidateNonNegativeInt;
+                    break;
+
+                case UIInputType.NON_NEGATIVE_FLOAT:
+                    if (maxDecimals <= 0)
+                    {
+                        input.onValidate = (UIInput.OnValidate)NGUI_Utils.ValidateNonNegativeFloat;
+                    }
+                    else
+                    {
+                        input.onValidate += (UIInput.OnValidate)((text, index, ch) => NGUI_Utils.ValidateNonNegativeFloatWithMaxDecimals(text, index, ch, maxDecimals));
+                    }
+                    break;
+
+                case UIInputType.INT:
+                    input.validation = UIInput.Validation.Integer;
+                    break;
+
+                case UIInputType.FLOAT:
+                    if (maxDecimals <= 0)
+                    {
+                        input.validation = UIInput.Validation.Float;
+                    }
+                    else
+                    {
+                        input.onValidate += (UIInput.OnValidate)((text, index, ch) => NGUI_Utils.ValidateFloatWithMaxDecimals(text, index, ch, maxDecimals));
+                    }
+                    break;
+
+                case UIInputType.PLAIN_TEXT:
+                    input.validation = UIInput.Validation.None;
+                    break;
+            }
+            if (defaultText != null) input.defaultText = defaultText;
+
+            if (!initialized)
+            {
+                UIEventListener listener = UIEventListener.Get(input.gameObject);
+                listener.onSelect = new UIEventListener.BoolDelegate((go, selected) => OnFieldSelected(selected));
+
+                EventDelegate.Add(input.onChange, new EventDelegate(this, nameof(OnChange)));
+                EventDelegate.Add(input.onSubmit, new EventDelegate(this, nameof(OnSubmit)));
+            }
+
+            initialized = true;
+        }
+
+        public void OnFieldSelected(bool selected)
+        {
+            if (selected && onSelected != null)
+            {
+                onSelected.Invoke();
+            }
+            else if (onDeselected != null)
+            {
+                onDeselected.Invoke();
+            }
+        }
+        void OnChange()
+        {
+            if (setFieldColorAutomatically)
+            {
+                Set(IsValueValid());
+            }
+
+            if (onChange != null && executeOnChange)
+            {
+                onChange.Invoke();
+            }
+        }
+        void OnSubmit()
+        {
+            if (onSubmit != null)
+            {
+                onSubmit.Invoke();
+            }
+        }
+
+        void OnGUI()
+        {
+            Event e = Event.current;
+
+            if (e.type == EventType.KeyDown && e.control && input.isSelected)
+            {
+                if (e.keyCode == KeyCode.C)
+                {
+                    e.Use(); // Prevent NGUI for using its weird system.
+                    if (input.selectionStart == input.selectionEnd) // No text is selected specifically, copy it all.
+                        GUIUtility.systemCopyBuffer = input.value;
+                    else // There IS a selection, only copy that.
+                        GUIUtility.systemCopyBuffer = AccessTools.Method(typeof(UIInput), "GetSelection")?.Invoke(input, null) as string;
+                }
+                else if (e.keyCode == KeyCode.V)
+                {
+                    e.Use(); // Prevent NGUI for using its weird system.
+                    AccessTools.Method(typeof(UIInput), "Insert", new[] { typeof(string) })
+                        ?.Invoke(input, new object[] { GUIUtility.systemCopyBuffer });
+                }
+            }
+        }
+
+        public void Set(bool newState)
+        {
+            isValid = newState;
+
+            if (newState)
+            {
+                fieldSprite.color = validValueColor;
+            }
+            else
+            {
+                fieldSprite.color = invalidValueColor;
+            }
+        }
+
+        bool IsValueValid()
+        {
+            switch (inputType)
+            {
+                case UIInputType.HEX_COLOR:
+                    return Utils.HexToColor(GetText(), false, null) != null;
+
+                case UIInputType.NON_NEGATIVE_INT:
+                    if (int.TryParse(GetText(), out int intResult))
+                    {
+                        return intResult >= 0;
+                    }
+                    return false;
+
+                case UIInputType.NON_NEGATIVE_FLOAT:
+                    if (Utils.TryParseFloat(GetText(), out float floatResult))
+                    {
+                        return floatResult >= 0;
+                    }
+                    return false;
+
+                case UIInputType.INT:
+                    return int.TryParse(GetText(), out int intResult2);
+
+                case UIInputType.FLOAT:
+                    return Utils.TryParseFloat(GetText(), out float floatResult2);
+
+                case UIInputType.PLAIN_TEXT:
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the current text of the UIInput, if empty, returns the default text value.
+        /// </summary>
+        /// <returns></returns>
+        public string GetText()
+        {
+            if (!string.IsNullOrEmpty(input.text))
+            {
+                return input.text;
+            }
+            else
+            {
+                return input.defaultText;
+            }
+        }
+
+        public void SetText(string newText, bool executeOnChange = true)
+        {
+            this.executeOnChange = executeOnChange;
+            input.text = newText;
+            this.executeOnChange = true;
+        }
+        public void SetText(float value, bool executeOnChange = true)
+        {
+            this.executeOnChange = executeOnChange;
+            input.text = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            this.executeOnChange = true;
+        }
+        public void SetText(float value, int maxDecimals, bool executeOnChange = true)
+        {
+            string format = "0";
+            if (maxDecimals > 0)
+                format += "." + new string('#', maxDecimals);
+
+            this.executeOnChange = executeOnChange;
+            input.text = value.ToString(format, System.Globalization.CultureInfo.InvariantCulture);
+            this.executeOnChange = true;
+        }
+
+        public void SetAsUndefined()
+        {
+            var validation = input.validation;
+            var onValidate = input.onValidate;
+
+            input.validation = UIInput.Validation.None;
+            input.onValidate = null;
+
+            SetText("...", false);
+
+            input.validation = validation;
+            input.onValidate = onValidate;
+        }
+    }
+}

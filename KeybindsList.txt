@@ -1,0 +1,26 @@
+/Keyboard_F1\ Open this menu.
+
+/Keyboard_Right Click\ Rotate the editor camera.
+/Keyboard_W\ /Keyboard_A\ /Keyboard_S\ /Keyboard_D\ + /Keyboard_Right Click\ Move/Rotate around the level scene.
+/Keyboard_E\ and /Keyboard_Q\ Move camera up and down.
+/Keyboard_Left Shift\ + /Keyboard_Right Click\ Move camera faster.
+/Keyboard_Left Alt\ + /Keyboard_Black_PositiveScrollWheel\ Increase camera move speed.
+/Keyboard_Left Alt\ + /Keyboard_Black_NegativeScrollWheel\ Decrease camera move speed.
+
+/Keyboard_Num 1\ Building mode.
+/Keyboard_Num 2\ Selection mode.
+/Keyboard_Num 3\ Toggle waypoint view.
+/Keyboard_Num 4\ Toggle local/global gizmos.
+/Keyboard_Num 5\ Show level metadata panel.
+/Keyboard_Num 6\ Toggle editor lighting.
+/Keyboard_Num 7\ Toggle waypoint rotation.
+
+/Keyboard_Left Click\ Use/Select.
+/Keyboard_Left Control\ + /Keyboard_Left Click\ Select multiple objects individually.
+/Keyboard_Left Shift\ + /Keyboard_Left Click\ (Hold) Bulk Selection.
+
+/Keyboard_R\ Rotate object on the Y axis.
+/Keyboard_Left Shift\ + /Keyboard_R\ Rotate object on the X axis.
+/Keyboard_Left Alt\ + /Keyboard_R\ Rotate object on the Z axis.
+/Keyboard_Left Control\ + /Keyboard_R\ Reset object rotation.
+/Keyboard_T\ + /Keyboard_R\ Rotate object counter clockwise.

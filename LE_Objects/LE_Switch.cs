@@ -1,0 +1,407 @@
+﻿using FractalSpace;
+using FS_LevelEditor.Editor;
+using FS_LevelEditor.Editor.UI;
+using HarmonyLib;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using TMPro;
+using Unity.Services.Analytics;
+using UnityEngine;
+using UnityEngine.Events;
+using UnityEngine.EventSystems;
+using static KeycodeController;
+
+namespace FS_LevelEditor
+{
+    
+    public class LE_Switch : LE_Object
+    {
+        public enum SwitchState
+        {
+            DEACTIVATED,
+            ACTIVATED,
+            UNUSABLE
+        }
+        InterrupteurController controller;
+        MeshRenderer redPlane, greenPlane, cyanPlane;
+
+        public override string[] EventsIDs =>
+        new[] {"WhenInvertingEvents",
+            "WhenActivatingEvents",
+            "WhenDeactivatingEvents" };
+            
+
+        // Special variable for an edge case where the switch state was changed through events but ObjectStart wasn't called yet (the objected was set to be despawned at start)
+        // So the event change was overrided by ObjectStart when the object was enabled for the first time.
+        public bool alreadyChangedStateThroughtEvents = false;
+
+        void Awake()
+        {
+            redPlane = gameObject.GetChildAt("Content/ButtonMesh/RedButtonPlane").GetComponent<MeshRenderer>();
+            greenPlane = gameObject.GetChildAt("Content/ButtonMesh/GreenPlaneButton").GetComponent<MeshRenderer>();
+            cyanPlane = gameObject.GetChildAt("Content/ButtonMesh/CyanPlaneButton").GetComponent<MeshRenderer>();
+        }
+
+        public static Dictionary<string, object> GetDefaultProperties()
+        {
+            return new Dictionary<string, object>
+            {
+                { "InitialState", SwitchState.DEACTIVATED },
+                { "UsableOnce", false },
+                { "CanUseTaser", true },
+                { "OnlyByTaser", false },
+                { "Cyan", false },
+                { "canBeUsed", true },
+                { "WhenInvertingEvents", new List<LE_Event>() },
+                { "WhenActivatingEvents", new List<LE_Event>() },
+                { "WhenDeactivatingEvents", new List<LE_Event>() },
+            };
+        }
+
+        public override void ObjectStart(LEScene scene)
+        {
+            if (scene == LEScene.Editor)
+                SetMeshInEditor(GetProperty<SwitchState>("InitialState"));
+
+            // Make sure that we aren't overriding any changes that an event could've done here.
+            if (scene == LEScene.Playmode && !alreadyChangedStateThroughtEvents)
+            {
+                switch (GetProperty<SwitchState>("InitialState"))
+                {
+                    case SwitchState.DEACTIVATED:
+                        // Switch is already disabled at start by default.
+                        break;
+
+                    case SwitchState.ACTIVATED:
+                        // Events aren't triggered when called this way.
+                        TriggerAction("Activate");
+                        break;
+
+                    case SwitchState.UNUSABLE:
+                        TriggerAction("SetUnusable");
+                        break;
+                }
+            }
+
+            base.ObjectStart(scene);
+        }
+
+        public override void InitComponent()
+        {
+            GameObject button = gameObject.GetChild("Content");
+
+            #region Setup tags and layers
+            button.tag = "Interrupteur";
+            button.GetChild("ActivateTrigger").tag = "ActivateTrigger";
+            button.GetChild("ActivateTrigger").layer = LayerMask.NameToLayer("Ignore Raycast");
+
+            button.GetChild("AdditionalInteractionCollider_Sides").tag = "InteractionCollider";
+            button.GetChild("AdditionalInteractionCollider_Sides").layer = LayerMask.NameToLayer("ActivableCheck");
+            button.GetChild("AdditionalInteractionCollider_Radial").tag = "InteractionCollider";
+            button.GetChild("AdditionalInteractionCollider_Radial").layer = LayerMask.NameToLayer("ActivableCheck");
+            button.GetChild("AdditionalInteractionCollider_Vertical").tag = "InteractionCollider";
+            button.GetChild("AdditionalInteractionCollider_Vertical").layer = LayerMask.NameToLayer("ActivableCheck");
+
+            button.GetChild("InteractionOccluder").tag = "InteractionOccluder";
+            button.GetChild("InteractionOccluder").layer = LayerMask.NameToLayer("ActivableCheck");
+
+            button.GetChild("AutoAimCollider").tag = "AutoAim";
+            button.GetChild("AutoAimCollider").layer = LayerMask.NameToLayer("Water");
+            #endregion
+
+            controller = button.AddComponent<InterrupteurController>();
+
+            controller.ActivateButtonSound = t_switch.ActivateButtonSound;
+            controller.additionalInteractionGO = button.GetChild("AdditionalInteractionCollider_Sides");
+            controller.allowManualInteractAnim = true;
+            controller.allowWhenSwitchingUIContext = true;
+            controller.canBeUsed = GetProperty<bool>("canBeUsed");
+            controller.controlScript = Controls.Instance;
+            controller.handleAnimator = button.GetChildAt("ButtonMesh/HandleHolder").GetComponent<Animator>();
+            controller.iconActivationSound = t_switch.iconActivationSound;
+            controller.iconDeactivationSound = t_switch.iconDeactivationSound;
+            controller.IGCType = Controls.InGamePlayerKineType.MANUAL_BUTTON_INTERACTION;
+            controller.interactableWhileDodge = true;
+            controller.leverSound = t_switch.leverSound;
+            AccessTools.Field(controller.GetType(), "localizedInteractionString")
+            .SetValue(controller, "Activate");
+            controller.lockboxAnimTrigger = "IGC_Open";
+            controller.m_audioSource = button.GetComponent<AudioSource>();
+            controller.m_audioSource.outputAudioMixerGroup = t_switch.m_audioSource.outputAudioMixerGroup;
+            #region Renderers
+            controller.cyanLightbandPlane = button.GetChildAt("ButtonMesh/Switch_LightBands_Top/Lightbands_Top_Cyan").GetComponent<MeshRenderer>();
+            controller.cyanPlane = button.GetChildAt("ButtonMesh/CyanPlaneButton").GetComponent<MeshRenderer>();
+            controller.greenLightbandPlane = button.GetChildAt("ButtonMesh/Switch_LightBands_Top/Lightbands_Top_Green").GetComponent<MeshRenderer>();
+            controller.greenPlane = button.GetChildAt("ButtonMesh/GreenPlaneButton").GetComponent<MeshRenderer>();
+            controller.redLightbandPlane = button.GetChildAt("ButtonMesh/Switch_LightBands_Bottom/Lightbands_Bottom_Red").GetComponent<MeshRenderer>();
+            controller.redPlane = button.GetChildAt("ButtonMesh/RedButtonPlane").GetComponent<MeshRenderer>();
+            controller.m_meshRenderer = button.GetChild("ButtonMesh").GetComponent<MeshRenderer>();
+            #endregion
+            controller.m_meshTransform = button.GetChild("ButtonMesh").transform;
+            controller.offColor = InterrupteurController.ColorType.RED;
+            controller.offMaterials = t_switch.offMaterials;
+            controller.onColor = InterrupteurController.ColorType.GREEN;
+            controller.onMaterials = t_switch.onMaterials;
+            controller.unusableColor = InterrupteurController.ColorType.BLACK;
+            controller.unusableCoverAnimator = button.GetChildAt("ButtonMesh/UnusableCoverHolder").GetComponent<Animator>();
+            controller.unusableMaterials = t_switch.unusableMaterials;
+            controller.objectsToActivate = new GameObject[0];
+            controller.objectsToDestroy = new GameObject[0];
+            controller.objectsToEnableOnly = new GameObject[0];
+            AccessTools.Field(controller.GetType(), "objectToActivate")
+            .SetValue(controller, gameObject);
+            controller.m_onActivate = new UnityEngine.Events.UnityEvent();
+            controller.m_onActivate_HandOnly = new UnityEngine.Events.UnityEvent();
+            controller.m_onActivate_TaserOnly = new UnityEngine.Events.UnityEvent();
+            controller.messagesOnActivate = new Messenger[0];
+            controller.messagesOnDeactivate = new Messenger[0];
+            controller.dialogToActivate = new string[0];
+            controller.doorsToClose = new GameObject[0];
+            controller.toggleCanBeUsed = new GameObject[0];
+
+            controller.usableOnce = (bool)GetProperty("UsableOnce");
+            //controller.ignoreLaser = !(bool)GetProperty("CanUseTaser");
+            //controller.laserOnly = (bool)GetProperty("OnlyByTaser");
+            if (GetProperty<bool>("CanUseTaser"))
+            {
+                controller.ignoreLaser = false;
+                controller.laserOnly = GetProperty<bool>("OnlyByTaser");
+            }
+            else
+            {
+                controller.ignoreLaser = true;
+                controller.laserOnly = false;
+            }
+
+            if (GetProperty<bool>("Cyan"))
+            {
+                controller.onColor = InterrupteurController.ColorType.CYAN;
+                controller.m_onActivate.AddListener((UnityEngine.Events.UnityAction)delegate {
+                    controller.offColor = InterrupteurController.ColorType.CYAN;
+                });
+                controller.m_onActivate_HandOnly.AddListener((UnityEngine.Events.UnityAction)delegate {
+                    controller.offColor = InterrupteurController.ColorType.CYAN;
+                });
+                controller.m_onActivate_TaserOnly.AddListener((UnityEngine.Events.UnityAction)delegate {
+                    controller.offColor = InterrupteurController.ColorType.CYAN;
+                });
+
+            }
+
+            ConfigureEvents(controller);
+            // Do NOT hide mesh in editor
+            initialized = true;
+        }
+
+        public override bool SetProperty(string name, object value)
+        {
+            if (name == "InitialState")
+            {
+                if (value is int)
+                {
+                    properties["InitialState"] = (SwitchState)value;
+                    if (EditorController.Instance) SetMeshInEditor((SwitchState)value);
+                    return true;
+                }
+                else if (value is SwitchState)
+                {
+                    properties["InitialState"] = value;
+                    if (EditorController.Instance) SetMeshInEditor((SwitchState)value);
+                    return true;
+                }
+            }
+            else if (name == "UsableOnce")
+            {
+                if (value is bool)
+                {
+                    properties["UsableOnce"] = (bool)value;
+                    return true;
+                }
+            }
+            else if (name == "CanUseTaser")
+            {
+                if (value is bool)
+                {
+                    properties["CanUseTaser"] = (bool)value;
+                    return true;
+                }
+            }
+            else if (name == "Cyan")
+            {
+                if (value is bool)
+                {
+                    properties["Cyan"] = (bool)value;
+                    return true;
+                }
+            }
+            else if (name == "OnlyByTaser")
+            {
+                if (value is bool)
+                {
+                    properties["OnlyByTaser"] = (bool)value;
+                    return true;
+                }
+            }
+            else if (name == "canBeUsed")
+            {
+                if (value is bool)
+                {
+                    properties["canBeUsed"] = (bool)value;
+                    return true;
+                }
+            }
+            else if (name == "WhenActivatingEvents")
+            {
+                if (value is List<LE_Event>)
+                {
+                    properties["WhenActivatingEvents"] = (List<LE_Event>)value;
+                }
+            }
+            else if (name == "WhenDeactivatingEvents")
+            {
+                if (value is List<LE_Event>)
+                {
+                    properties["WhenDeactivatingEvents"] = (List<LE_Event>)value;
+                }
+            }
+            else if (name == "WhenInvertingEvents")
+            {
+                if (value is List<LE_Event>)
+                {
+                    properties["WhenInvertingEvents"] = (List<LE_Event>)value;
+                }
+            }
+
+            return base.SetProperty(name, value);
+        }
+        public override bool TriggerAction(string actionName)
+        {
+            if (actionName == "Activate")
+            {
+                UnityEvent onActivate = controller.m_onActivate;
+                controller.m_onActivate = new UnityEvent();
+                controller.ActivateSwitch();
+                controller.m_onActivate = onActivate;
+                return true;
+            }
+            else if (actionName == "Deactivate")
+            {
+                UnityEvent onDeactivate = controller.m_onDeactivate;
+                controller.m_onDeactivate = new UnityEvent();
+                controller.DeactivateSwitch();
+                controller.m_onDeactivate = onDeactivate;
+                return true;
+            }
+            else if (actionName == "ToggleActivated")
+            {
+                if (controller.activated)
+                {
+                    UnityEvent onDeactivate = controller.m_onDeactivate;
+                    controller.m_onDeactivate = new UnityEvent();
+                    controller.DeactivateSwitch();
+                    controller.m_onDeactivate = onDeactivate;
+                }
+                else
+                {
+                    UnityEvent onActivate = controller.m_onActivate;
+                    controller.m_onActivate = new UnityEvent();
+                    controller.ActivateSwitch();
+                    controller.m_onActivate = onActivate;
+                }
+                return true;
+            }
+            else if (actionName == "ExecuteWhenActivatingActions")
+            {
+                ExecuteWhenActivatingEvents();
+            }
+            else if (actionName == "ExecuteWhenDeactivatingActions")
+            {
+                ExecuteWhenDeactivatingEvents();
+            }
+            else if (actionName == "ExecuteWhenInvertingActions")
+            {
+                // Execute both activating and deactivating for inverting since we don't know the current state
+                ExecuteWhenInvertingEventsActivating();
+            }
+
+            else if (actionName == "SetUsable")
+            {
+                controller.IsNowUsable();
+            }
+            else if (actionName == "SetUnusable")
+            {
+                controller.IsNowUnusable();
+            }
+            else if (actionName == "ToggleUsable")
+            {
+                controller.InvertUsableState();
+            }
+            else if (actionName == "SetCanBeUsed_True")
+            {
+                controller.canBeUsed = true;
+            }
+            else if (actionName == "SetCanBeUsed_False")
+            {
+                controller.canBeUsed = false;
+            }
+            else if (actionName == "ToggleCanBeUsed")
+            {
+                controller.canBeUsed = !controller.canBeUsed;
+            }
+
+            return base.TriggerAction(actionName);
+        }
+
+        void SetMeshInEditor(SwitchState newState)
+        {
+            redPlane.enabled = newState == SwitchState.DEACTIVATED;
+            greenPlane.enabled = newState == SwitchState.ACTIVATED && !(bool)GetProperty<bool>("Cyan");
+            cyanPlane.enabled = newState == SwitchState.ACTIVATED && (bool)GetProperty<bool>("Cyan");
+
+            // Both will be disabled if newState is UNUSABLE, that should show the UNUSABLE state as expected:)
+            // Do NOT hide mesh in editor
+        }
+
+        void ConfigureEvents(InterrupteurController controller)
+        {
+            controller.m_onActivate = new UnityEngine.Events.UnityEvent();
+            controller.m_onActivate.AddListener((UnityAction)ExecuteWhenActivatingEvents);
+            controller.m_onActivate.AddListener((UnityAction)ExecuteWhenInvertingEventsActivating);
+
+            controller.m_onDeactivate = new UnityEngine.Events.UnityEvent();
+            controller.m_onDeactivate.AddListener((UnityAction)ExecuteWhenDeactivatingEvents);
+            controller.m_onDeactivate.AddListener((UnityAction)ExecuteWhenInvertingEventsDeactivating);
+        }
+
+        void ExecuteWhenActivatingEvents()
+        {
+            eventExecuter.ExecuteEventsWithAndLogic((List<LE_Event>)properties["WhenActivatingEvents"], "WhenActivatingEvents", true);
+        }
+        void ExecuteWhenDeactivatingEvents()
+        {
+            eventExecuter.ExecuteEventsWithAndLogic((List<LE_Event>)properties["WhenDeactivatingEvents"], "WhenDeactivatingEvents", false);
+        }
+        void ExecuteWhenInvertingEventsActivating()
+        {
+            eventExecuter.ExecuteEventsWithAndLogic((List<LE_Event>)properties["WhenInvertingEvents"], "WhenInvertingEvents", true);
+        }
+        void ExecuteWhenInvertingEventsDeactivating()
+        {
+            eventExecuter.ExecuteEventsWithAndLogic((List<LE_Event>)properties["WhenInvertingEvents"], "WhenInvertingEvents", false);
+        }
+
+        public override void SetCollidersStateForEdgeCase(bool newEnabledState)
+        {
+            contentObject.GetComponent<BoxCollider>().isTrigger = !newEnabledState;
+
+            contentObject.GetChild("AdditionalInteractionCollider_Sides").GetComponent<BoxCollider>().enabled = newEnabledState;
+            contentObject.GetChild("AdditionalInteractionCollider_Radial").GetComponent<BoxCollider>().enabled = newEnabledState;
+            contentObject.GetChild("AdditionalInteractionCollider_Vertical").GetComponent<BoxCollider>().enabled = newEnabledState;
+            contentObject.GetChild("InteractionOccluder").GetComponent<BoxCollider>().enabled = newEnabledState;
+            contentObject.GetChild("AutoAimCollider").GetComponent<BoxCollider>().enabled = newEnabledState;
+        }
+    }
+}

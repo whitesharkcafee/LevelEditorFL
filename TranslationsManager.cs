@@ -1,0 +1,343 @@
+﻿using FS_LevelEditor.Editor.UI;
+using FractalSpace;
+using I2.Loc;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using System.Threading.Tasks;
+using System.IO;
+
+namespace FS_LevelEditor
+{
+    public static class TranslationsManager
+    {
+        public static bool initialized { get; private set; } = false;
+
+        static Dictionary<string, List<string>> translations;
+        static List<string> languages;
+        public static string currentLanguage
+        {
+            get
+            {
+                return Localization.language;
+            }
+        }
+
+        static readonly Dictionary<LE_Object.ObjectType, string> localizedObjectNames = new Dictionary<LE_Object.ObjectType, string>();
+
+        public static void Init()
+        {
+            ReadTranslationsFile();
+
+            initialized = true;
+
+            RefreshLocalizedObjectsNamesDictionary(); // MAKE SURE TO CALL THIS AFTER SETTING INITIALIZED TO TRUE, OTHERWISE, STACK OVERFLOW.
+        }
+
+        static void ReadTranslationsFile()
+        {
+            string[] test = Assembly.GetExecutingAssembly().GetManifestResourceNames();
+            Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("FS_LevelEditor.Translations.Translations.csv");
+            byte[] bytes = new byte[stream.Length];
+            stream.Read(bytes);
+
+            StreamReader sr = new StreamReader(stream);
+            string fileContent = Encoding.UTF8.GetString(bytes);
+            ReadTranslations(fileContent);
+        }
+        static void ReadTranslations(string fileContent)
+        {
+            translations = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            languages = new List<string>();
+
+            string[] lines = SplitLines(fileContent);
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string[] columns = SplitWithCommas(lines[i].Trim());
+
+                if (i == 0)
+                {
+                    for (int j = 1; j < columns.Length; j++)
+                    {
+                        if (languages.Contains(columns[j].ToUpper()))
+                        {
+                            Logger.Error($"Duplicate language found in translations file: \"{columns[j]}\" at line {j}. Skipping it...");
+                            continue;
+                        }
+                        languages.Add(columns[j].ToUpper());
+                    }
+                    continue;
+                }
+
+                if (columns.Length == 0) continue;
+                if (string.IsNullOrEmpty(columns[0])) continue;
+
+                string currentKey = columns[0];
+                if (translations.ContainsKey(currentKey))
+                {
+                    Logger.Error($"Duplicate key found in translations file: \"{currentKey}\" at line {i + 1}. Skipping it...");
+                    continue;
+                }
+                List<string> currentKeyTranslations = new List<string>();
+                for (int j = 1; j < columns.Length; j++)
+                {
+                    currentKeyTranslations.Add(columns[j].Trim());
+                }
+
+                translations.Add(currentKey, currentKeyTranslations);
+            }
+        }
+
+        static string[] SplitLines(string text)
+        {
+            var lines = new List<string>();
+            int startOfLine = 0;
+            bool inQuotes = false;
+
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+
+                if (c == '"')
+                {
+                    inQuotes = !inQuotes;
+                }
+                else if ((c == '\n' || c == '\r') && !inQuotes)
+                {
+                    if (c == '\r')
+                    {
+                        i++;
+                        c = text[i];
+                    }
+
+                    if (c == '\n')
+                    {
+                        string line = text.Substring(startOfLine, i - startOfLine);
+                        lines.Add(line);
+                    }
+
+                    startOfLine = i + 1;
+                }
+            }
+
+            return lines.ToArray();
+        }
+        static string[] SplitWithCommas(string line)
+        {
+            var fields = new List<string>();
+            var currentField = new StringBuilder();
+            bool inQuotes = false;
+
+            for (int i = 0; i < line.Length; i++)
+            {
+                if (line[i] == '"')
+                {
+                    if (inQuotes && i + 1 < line.Length && line[i + 1] == '"') // Handle escaped quotes
+                    {
+                        currentField.Append('"');
+                        i++; // Skip the next quote
+                    }
+                    else
+                    {
+                        inQuotes = !inQuotes; // Toggle inQuotes state
+                    }
+                }
+                else if (line[i] == ',' && !inQuotes)
+                {
+                    fields.Add(currentField.ToString().Trim());
+                    currentField.Clear();
+                }
+                else
+                {
+                    currentField.Append(line[i]);
+                }
+            }
+            // Add the last field if it exists
+            if (currentField.Length > 0) fields.Add(currentField.ToString().Trim());
+
+            return fields.ToArray();
+        }
+
+        public static string GetTranslation(string key, bool throwErrorIfNotFound)
+        {
+            if (!initialized)
+            {
+                Init();
+            }
+            if (!translations.ContainsKey(key))
+            {
+                // If no translation is found in LE sheet, try to find it in the FS sheet.
+                // WARNING: Not to be confused with "shit".
+                if (LocalizationManager.Sources[0].ContainsTerm(key))
+                {
+                    UILocalizePatch.DontPatchNextGet();
+                    try
+                    {
+                        return Localization.Get(key);
+                    }
+                    finally
+                    {
+                        UILocalizePatch.ClearSuppression();
+                    }
+                }
+                else // If nothing of this works, just return the key, fuck it.
+                {
+                    if (throwErrorIfNotFound) Logger.Error($"\"{key}\" doesn't exists in the LE Translations!");
+                    return key;
+                }
+            }
+
+            int langIndex = languages.Contains(Localization.language.ToUpper()) ? languages.IndexOf(Localization.language.ToUpper()) : 0;
+            if (translations[key].Count - 1 >= langIndex)
+            {
+                return translations[key][langIndex];
+            }
+            else if (translations[key].Count > 0)
+            {
+                return translations[key][0]; // Return the first translation (English).
+            }
+            else // If nothing of this works, just return the key, fuck it.
+            {
+                return key;
+            }
+        }
+
+        public static bool ExistTranslation(string key, out string translation)
+        {
+            if (!initialized)
+            {
+                Init();
+            }
+
+            if (translations.ContainsKey(key))
+            {
+                translation = GetTranslation(key, false);
+                return true;
+            }
+            else
+            {
+                // Use FS sheet as a last resource.
+                if (LocalizationManager.Sources.Count == 0) LocalizationManager.UpdateSources();
+                if (LocalizationManager.Sources[0].ContainsTerm(key))
+                {
+                    UILocalizePatch.DontPatchNextGet();
+                    try
+                    {
+                        translation = Localization.Get(key);
+                    }
+                    finally
+                    {
+                        UILocalizePatch.ClearSuppression();
+                    }
+                    return true;
+                }
+                else
+                {
+                    translation = null;
+                    return false;
+                }
+            }
+        }
+
+        public static void RefreshLocalizedObjectsNamesDictionary()
+        {
+            localizedObjectNames.Clear();
+            foreach (LE_Object.ObjectType type in Enum.GetValues(typeof(LE_Object.ObjectType)))
+            {
+                string localized = Loc.Get("object." + type.ToString());
+                localizedObjectNames.Add(type, localized);
+            }
+        }
+        public static string GetLocalizedObjectName(LE_Object.ObjectType type)
+        {
+            foreach (var pair in localizedObjectNames)
+            {
+                if (pair.Key == type)
+                    return pair.Value;
+            }
+
+            return null;
+        }
+        public static bool IsLocalizedObjectName(string name, out LE_Object.ObjectType type)
+        {
+            foreach (var pair in localizedObjectNames)
+            {
+                if (string.Equals(pair.Value, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    type = pair.Key;
+                    return true;
+                }
+            }
+
+            type = LE_Object.ObjectType.GROUND;
+            return false;
+        }
+    }
+
+    // This class is only to avoid writing TranslationsManager.GetTranslation bla bla bla every time I wanna use it.
+    public static class Loc
+    {
+        public static string Get(string key, bool throwErrorIfNotFound = true)
+        {
+            return TranslationsManager.GetTranslation(key, throwErrorIfNotFound);
+        }
+
+        public static bool HasKey(string key) => HasKey(key, out var translation);
+        public static bool HasKey(string key, out string translation)
+        {
+            return TranslationsManager.ExistTranslation(key, out translation);
+        }
+    }
+
+    [HarmonyLib.HarmonyPatch(typeof(Localization), nameof(Localization.Get))]
+    public static class UILocalizePatch
+    {
+        // Depth counter, not a bool: suppression must stay active for the ENTIRE
+        // duration of the wrapped call, including anything Localization.Get calls
+        // internally/recursively while resolving that key.
+        static int suppressDepth = 0;
+
+        public static void DontPatchNextGet()
+        {
+            suppressDepth++;
+        }
+
+        public static void ClearSuppression()
+        {
+            if (suppressDepth > 0) suppressDepth--;
+        }
+
+        public static bool Prefix(ref string __result, string key)
+        {
+            if (suppressDepth > 0)
+                return true; // let the real, un-patched call (and any nested calls) run untouched
+
+            if (Loc.HasKey(key, out string translation))
+            {
+                __result = translation;
+                return false;
+            }
+
+            return true;
+        }
+    }
+
+    [HarmonyLib.HarmonyPatch(typeof(OptionsController), nameof(OptionsController.UpdateAllLocalizedLabels))]
+    public static class OnLanguageChangedPatch
+    {
+        public static void Postfix()
+        {
+            if (EditorUIManager.Instance)
+            {
+                EditorUIManager.Instance.OnLanguageChanged();
+            }
+
+            TranslationsManager.RefreshLocalizedObjectsNamesDictionary();
+        }
+    }
+}
+
+// Just a stupid comment so Github lets me make another commit :) LOL
