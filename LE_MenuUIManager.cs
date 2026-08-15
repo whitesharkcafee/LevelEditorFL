@@ -183,9 +183,14 @@ namespace FS_LevelEditor
             // So... I just realized if you add a class to a gameobject with also a UIButton, the button will automatically call a "OnClick" function inside of the class if it exists,
             // without adding it manually to the UIButton via code... good to know :)
             LE_UIButtonActionCtrl onClickClass = levelEditorUIButton.AddComponent<LE_UIButtonActionCtrl>();
+            //FL patches - because the button APPEARS when you're in the menu, and because you can enable the mod in the menu, to fix the floating 
+            //button, reposition it.
+            levelEditorUIButton.transform.parent.GetComponent<UITable>().Reposition();
+            levelEditorUIButton.transform.parent.GetComponent<UITable>().repositionNow = true;
 
             // Finally, enable the button.
             levelEditorUIButton.SetActive(true);
+            
         }
 
         // And yes, this whole function is directly copied from the OST mod (almost), DON'T JUDGE ME.

@@ -359,16 +359,16 @@ namespace FS_LevelEditor
         {
             if (contactRangeSphere != null)
             {
-                // Divide by parent scale to compensate for the mine's default scale
                 Vector3 parentScale = gameObject.transform.localScale;
                 Vector3 rangeSphereScale = new Vector3(
-                    (range * 2) / parentScale.x,
-                    (range * 2) / parentScale.y,
-                    (range * 2) / parentScale.z
+                    SafeDivide(range * 2, parentScale.x),
+                    SafeDivide(range * 2, parentScale.y),
+                    SafeDivide(range * 2, parentScale.z)
                 );
                 contactRangeSphere.transform.localScale = rangeSphereScale;
             }
         }
+
 
         void SetProximityRangeSphereScale(float range)
         {
@@ -377,9 +377,9 @@ namespace FS_LevelEditor
                 // Divide by parent scale to compensate for the mine's default scale
                 Vector3 parentScale = gameObject.transform.localScale;
                 Vector3 rangeSphereScale = new Vector3(
-                    (range * 2) / parentScale.x,
-                    (range * 2) / parentScale.y,
-                    (range * 2) / parentScale.z
+                    SafeDivide(range * 2, parentScale.x),
+                    SafeDivide(range * 2, parentScale.y),
+                    SafeDivide(range * 2, parentScale.z)
                 );
                 proximityRangeSphere.transform.localScale = rangeSphereScale;
             }
@@ -392,12 +392,18 @@ namespace FS_LevelEditor
                 // Divide by parent scale to compensate for the mine's default scale
                 Vector3 parentScale = gameObject.transform.localScale;
                 Vector3 rangeSphereScale = new Vector3(
-                    (range * 2) / parentScale.x,
-                    (range * 2) / parentScale.y,
-                    (range * 2) / parentScale.z
+                    SafeDivide(range * 2, parentScale.x),
+                    SafeDivide(range * 2, parentScale.y),
+                    SafeDivide(range * 2, parentScale.z)
                 );
                 remoteRangeSphere.transform.localScale = rangeSphereScale;
             }
+        }
+
+        static float SafeDivide(float a, float b)
+        {
+            if (b == 0f) return 0f; // or 1f, whatever's a sane fallback
+            return a / b;
         }
 
         public override void OnSelect()

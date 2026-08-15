@@ -29,7 +29,7 @@ namespace FS_LevelEditor
     {
         public static bool Prefix()
         {
-            if (EditorController.Instance != null || LE_MenuUIManager.Instance.inLEMenu || LE_MenuUIManager.Instance.isInMidTransition)
+            if (EditorController.Instance != null ||(LE_MenuUIManager.Instance != null && (LE_MenuUIManager.Instance.inLEMenu || LE_MenuUIManager.Instance.isInMidTransition)))
             {
                 return false;
             }

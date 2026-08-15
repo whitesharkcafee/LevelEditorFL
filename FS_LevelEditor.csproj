@@ -146,6 +146,7 @@
       <HintPath>$(GameManaged)\System.Drawing.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="System.IO.Compression" />
     <Reference Include="System.Memory, Version=4.0.1.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>packages\System.Memory.4.5.4\lib\net461\System.Memory.dll</HintPath>
       <Private>True</Private>
@@ -449,6 +450,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BuildInfo.cs" />
+    <Compile Include="DependencyInstaller.cs" />
+    <Compile Include="LE_Objects\LE_Dummy_Checkpoint.cs" />
     <Compile Include="ModMain.cs" />
     <Compile Include="Editor\EditorGizmo.cs" />
     <Compile Include="Editor\EditorKeybinds.cs" />

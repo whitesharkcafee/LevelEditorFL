@@ -14,6 +14,9 @@ namespace FS_LevelEditor.SaveSystem.Converters
         private readonly Dictionary<string, string> renames;
         private readonly Dictionary<string, Func<JsonElement, object>> valueConverters;
 
+        // Cached once per converter instance instead of rebuilt on every Read() call.
+        private JsonSerializerOptions cachedFallbackOptions;
+
         public OldPropertiesRename(Dictionary<string, string> renames, Dictionary<string, Func<JsonElement, object>> valueConverters = null)
         {
             this.renames = renames;
@@ -25,6 +28,27 @@ namespace FS_LevelEditor.SaveSystem.Converters
             using (JsonDocument doc = JsonDocument.ParseValue(ref reader))
             {
                 var root = doc.RootElement;
+
+                // Fast path: if none of the properties on this object need renaming or
+                // value-converting, skip the full rewrite round-trip and deserialize directly
+                // using the (cached) fallback options.
+                bool needsRewrite = false;
+                foreach (var prop in root.EnumerateObject())
+                {
+                    if (renames.ContainsKey(prop.Name) || valueConverters.ContainsKey(
+                            renames.ContainsKey(prop.Name) ? renames[prop.Name] : prop.Name))
+                    {
+                        needsRewrite = true;
+                        break;
+                    }
+                }
+
+                var fallbackOptions = GetFallbackOptions(options);
+
+                if (!needsRewrite)
+                {
+                    return JsonSerializer.Deserialize<T>(root.GetRawText(), fallbackOptions);
+                }
 
                 using (MemoryStream modifiedStream = new MemoryStream())
                 {
@@ -43,7 +67,7 @@ namespace FS_LevelEditor.SaveSystem.Converters
                             {
                                 var convertedValue = converter(prop.Value);
                                 // Serialize the converted value.
-                                JsonSerializer.Serialize(writer, convertedValue, options);
+                                JsonSerializer.Serialize(writer, convertedValue, fallbackOptions);
                             }
                             else
                             {
@@ -57,11 +81,6 @@ namespace FS_LevelEditor.SaveSystem.Converters
 
                     modifiedStream.Position = 0;
 
-                    // Use the same options, BUT removing this converter from there to avoid infinite loops.
-                    var fallbackOptions = new JsonSerializerOptions(options);
-                    var existing = fallbackOptions.Converters.FirstOrDefault(c => c is OldPropertiesRename<T>);
-                    if (existing != null) fallbackOptions.Converters.Remove(existing);
-
                     return JsonSerializer.Deserialize<T>(modifiedStream, fallbackOptions);
                 }
             }
@@ -71,6 +90,21 @@ namespace FS_LevelEditor.SaveSystem.Converters
         {
             Logger.Error("[SAVE FILE] OldPropertiesRename converter is for read only.");
             throw new NotSupportedException("[SAVE FILE] OldPropertiesRename converter is for read only.");
+        }
+
+        // Builds (once) and caches the options clone with this converter removed, to avoid
+        // infinite recursion. Previously this was rebuilt via a fresh JsonSerializerOptions
+        // clone + LINQ scan on every single Read() call.
+        private JsonSerializerOptions GetFallbackOptions(JsonSerializerOptions options)
+        {
+            if (cachedFallbackOptions != null) return cachedFallbackOptions;
+
+            var fallback = new JsonSerializerOptions(options);
+            var existing = fallback.Converters.FirstOrDefault(c => c is OldPropertiesRename<T>);
+            if (existing != null) fallback.Converters.Remove(existing);
+
+            cachedFallbackOptions = fallback;
+            return cachedFallbackOptions;
         }
     }
 }

@@ -5,9 +5,11 @@ using FS_LevelEditor.Playmode;
 using FS_LevelEditor.SaveSystem;
 using HarmonyLib;
 using System;
+using System.IO;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using FS_LevelEditor.Playmode.Patches;
 
 namespace FS_LevelEditor
 {
@@ -26,6 +28,8 @@ namespace FS_LevelEditor
         public static bool loadCustomLevelOnSceneLoad;
         public static string levelFileNameWithoutExtensionToLoad;
         public static int totalDeathsInCurrentPlaymodeSession = 0;
+        public static string LevelNameJustQuitFrom = "";
+        public static bool JustQuitPlaymode = false;
 
         static readonly Vector3 groundBaseTopLeftPivot = new Vector3(-17f, 121f, -72f);
 
@@ -81,6 +85,13 @@ namespace FS_LevelEditor
             {
                 // Reset this variable.
                 totalDeathsInCurrentPlaymodeSession = 0;
+            }
+            if (!sceneName.Contains("Level4_PC") && JustQuitPlaymode)
+            {
+                DeleteAutoSaveFilesPatch.DeleteCurrentLevelAutoSaveFileIfExists(LevelNameJustQuitFrom);
+
+                LevelNameJustQuitFrom = "";
+                JustQuitPlaymode = false;
             }
         }
 
@@ -164,6 +175,11 @@ namespace FS_LevelEditor
         {
             isQuitting = true;
             SceneManager.sceneLoaded -= OnSceneWasLoaded;
+        }
+
+        private static string GetManagedFolderPath()
+        {
+            return Path.GetDirectoryName(typeof(UnityEngine.Object).Assembly.Location);
         }
     }
 }

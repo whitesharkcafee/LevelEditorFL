@@ -1,13 +1,14 @@
-﻿using FS_LevelEditor.SaveSystem;
+﻿using FractalSpace;
+using FS_LevelEditor.SaveSystem;
 using HarmonyLib;
-using FractalSpace;
 using InControl;
-
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using UnityEngine;
 
 namespace FS_LevelEditor.Playmode.Patches
 {
@@ -44,6 +45,11 @@ namespace FS_LevelEditor.Playmode.Patches
             "firstHealPackPicked",
             "Has_InfraredFlashlight",
             "HasAtLeastOneUpgrade",
+            "Available_Healthpacks",
+            "Available_TaserClips",
+            "NewGame",
+            "Finished_Chapter4_AtLeastOnce",
+            "Finished_Chapter3_AtLeastOnce"
         };
 
         public static bool Prefix(string _key, bool _persistent)
@@ -83,6 +89,8 @@ namespace FS_LevelEditor.Playmode.Patches
                     return false;
                 if (_key.Contains("Upgrade_"))
                     return false;
+                if (_key.Contains("FinishedAlpha_"))
+                    return false;
 
                 return true;
             }
@@ -102,14 +110,14 @@ namespace FS_LevelEditor.Playmode.Patches
                 return false;
             }
 
-            // Don't save the current level when you're loading playmode (which will be Chapter 4).
-            if (PlayModeController.Instance || ModMain.loadCustomLevelOnSceneLoad)
-            {
-                if (_key == "Current_Level" || _key == "Last_Checkpoint")
-                {
-                    return false;
-                }
-            }
+            //// Don't save the current level when you're loading playmode (which will be Chapter 4).
+            //if (PlayModeController.Instance || ModMain.loadCustomLevelOnSceneLoad)
+            //{
+            //    if (_key == "Current_Level" || _key == "Last_Checkpoint")
+            //    {
+            //        return false;
+            //    }
+            //}
 
             return true;
         }
@@ -160,6 +168,13 @@ namespace FS_LevelEditor.Playmode.Patches
 
             return true;
         }
+        public static void DeleteCurrentLevelAutoSaveFileIfExists(string levelName)
+        {
+            string path = Path.Combine(Application.persistentDataPath, $"CustomLevel_{levelName}_AutoSave.dat");
+
+            if (File.Exists(path))
+                File.Delete(path);
+        }
     }
 
     [HarmonyPatch(typeof(FractalSave), nameof(FractalSave.SetSaveFileName))]
@@ -169,7 +184,8 @@ namespace FS_LevelEditor.Playmode.Patches
         {
             if (PlayModeController.Instance)
             {
-                __instance.m_saveFileName = $"{PlayModeController.Instance.levelName}.dat";
+                __instance.m_saveFileName = $"CustomLevel_{PlayModeController.Instance.levelName}_AutoSave.dat";
+                FractalSave.quickSaveFileName = $"CustomLevel_{PlayModeController.Instance.levelName}_AutoSave.dat";
             }
         }
     }

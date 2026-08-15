@@ -1205,8 +1205,9 @@ namespace FS_LevelEditor.Editor.UI
 			}
 			else
 			{
-				EditorController.Instance.currentSelectedObjComponent.setActiveAtStart = setActiveAtStartToggle.isChecked;
-			}
+                if (EditorController.Instance.currentSelectedObjComponent.canBeDisabledAtStart)
+                    EditorController.Instance.currentSelectedObjComponent.setActiveAtStart = setActiveAtStartToggle.isChecked;
+            }
 			EditorController.Instance.levelHasBeenModified = true;
 		}
 		public void SetCollisionToggle()

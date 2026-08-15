@@ -1590,6 +1590,7 @@ namespace FS_LevelEditor.Editor
 
             Camera cam = Camera.main;
             var selectedObjects = new List<GameObject>();
+            Plane[] frustumPlanes = GeometryUtility.CalculateFrustumPlanes(cam);
 
             foreach (var obj in currentInstantiatedObjects)
             {
@@ -1612,8 +1613,7 @@ namespace FS_LevelEditor.Editor
                 var renderers = obj.gameObject.GetComponentsInChildren<Renderer>(true);
                 if (renderers.Length == 0) continue;
 
-                // Frustum culling first
-                Plane[] frustumPlanes = GeometryUtility.CalculateFrustumPlanes(cam);
+                // Frustum culling + combined bounds
                 Bounds? combinedBounds = null;
                 foreach (var renderer in renderers)
                 {
@@ -1622,48 +1622,17 @@ namespace FS_LevelEditor.Editor
                     if (combinedBounds == null)
                         combinedBounds = renderer.bounds;
                     else
-                        combinedBounds.Value.Encapsulate(renderer.bounds);
+                    {
+                        Bounds b = combinedBounds.Value;
+                        b.Encapsulate(renderer.bounds);
+                        combinedBounds = b;
+                    }
                 }
                 if (combinedBounds == null || !GeometryUtility.TestPlanesAABB(frustumPlanes, combinedBounds.Value))
                     continue;
 
-                // Sample mesh vertices and project to screen space
-                bool isInSelection = false;
-                foreach (var renderer in renderers)
-                {
-                    if (!renderer.enabled || !renderer.gameObject.activeInHierarchy)
-                        continue;
-
-                    MeshFilter meshFilter = renderer.GetComponent<MeshFilter>();
-                    if (meshFilter == null || meshFilter.sharedMesh == null)
-                        continue;
-
-                    Mesh mesh = meshFilter.sharedMesh;
-                    Transform transform = renderer.transform;
-                    Vector3[] vertices = mesh.vertices;
-
-                    // Sample vertices (use step for performance on large meshes)
-                    int step = Mathf.Max(1, vertices.Length / 100);
-                    for (int i = 0; i < vertices.Length; i += step)
-                    {
-                        Vector3 worldPos = transform.TransformPoint(vertices[i]);
-                        Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
-
-                        // Check if vertex is in front of camera and inside rectangle
-                        if (screenPos.z > 0 &&
-                            screenPos.x >= minX && screenPos.x <= maxX &&
-                            screenPos.y >= minY && screenPos.y <= maxY)
-                        {
-                            isInSelection = true;
-                            break;
-                        }
-                    }
-
-                    if (isInSelection)
-                        break;
-                }
-
-                if (isInSelection)
+                // Project the 8 bounds corners to screen space and test against the rectangle
+                if (IsBoundsInScreenRect(combinedBounds.Value, cam, minX, maxX, minY, maxY))
                 {
                     selectedObjects.Add(obj.gameObject);
                 }
@@ -1681,6 +1650,45 @@ namespace FS_LevelEditor.Editor
             {
                 SetMultipleObjectsAsSelected(selectedObjects);
             }
+        }
+
+        private bool IsBoundsInScreenRect(Bounds bounds, Camera cam, float minX, float maxX, float minY, float maxY)
+        {
+            Vector3 min = bounds.min;
+            Vector3 max = bounds.max;
+
+            Vector3[] corners = new Vector3[8]
+            {
+        new Vector3(min.x, min.y, min.z),
+        new Vector3(max.x, min.y, min.z),
+        new Vector3(min.x, max.y, min.z),
+        new Vector3(min.x, min.y, max.z),
+        new Vector3(max.x, max.y, min.z),
+        new Vector3(max.x, min.y, max.z),
+        new Vector3(min.x, max.y, max.z),
+        new Vector3(max.x, max.y, max.z),
+            };
+
+            float screenMinX = float.PositiveInfinity, screenMaxX = float.NegativeInfinity;
+            float screenMinY = float.PositiveInfinity, screenMaxY = float.NegativeInfinity;
+            bool anyInFront = false;
+
+            foreach (var corner in corners)
+            {
+                Vector3 screenPos = cam.WorldToScreenPoint(corner);
+                if (screenPos.z <= 0) continue; // behind camera, skip this corner
+
+                anyInFront = true;
+                if (screenPos.x < screenMinX) screenMinX = screenPos.x;
+                if (screenPos.x > screenMaxX) screenMaxX = screenPos.x;
+                if (screenPos.y < screenMinY) screenMinY = screenPos.y;
+                if (screenPos.y > screenMaxY) screenMaxY = screenPos.y;
+            }
+
+            if (!anyInFront) return false;
+
+            return screenMaxX >= minX && screenMinX <= maxX &&
+                   screenMaxY >= minY && screenMinY <= maxY;
         }
         #endregion
 

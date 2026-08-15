@@ -291,7 +291,7 @@ namespace FS_LevelEditor
 
         public static T FindObjectOfType<T>(Func<T, bool> predicate = null) where T : Component
         {
-            T[] array = UnityEngine.Object.FindObjectsByType<T>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            T[] array = Resources.FindObjectsOfTypeAll<T>();
 
             if (array.Length == 0)
             {
