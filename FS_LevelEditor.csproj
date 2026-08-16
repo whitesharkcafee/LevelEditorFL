@@ -450,7 +450,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BuildInfo.cs" />
-    <Compile Include="DependencyInstaller.cs" />
     <Compile Include="LE_Objects\LE_Dummy_Checkpoint.cs" />
     <Compile Include="ModMain.cs" />
     <Compile Include="Editor\EditorGizmo.cs" />

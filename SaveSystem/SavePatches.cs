@@ -13,19 +13,15 @@ namespace FS_LevelEditor.SaveSystem
 {
     public static class SavePatches
     {
-        public static JsonSerializerOptions OnWriteSaveFileOptions
+        private static readonly JsonSerializerOptions _saveFileOptions = new JsonSerializerOptions
         {
-            get
-            {
-                return new JsonSerializerOptions
-                {
 #if DEBUG
-                    WriteIndented = true,
+            WriteIndented = true,
 #endif
-                    //Converters = { new LEIgnoreDefaultValuesInLEEvents() }
-                };
-            }
-        }
+            Converters = { new LEIgnoreDefaultValuesInLEEvents() }
+        };
+
+        public static JsonSerializerOptions OnWriteSaveFileOptions => _saveFileOptions;
         private static readonly JsonSerializerOptions _onReadSaveFileOptions = new JsonSerializerOptions
         {
             Converters =

@@ -259,12 +259,14 @@ namespace FS_LevelEditor
         {
             if (actionName == "Activate")
             {
-                laser.Activate();
+                if (!laser.activated)
+                    laser.Activate();
                 return true;
             }
             else if (actionName == "Deactivate")
             {
-                laser.Deactivate();
+                if (laser.activated)
+                    laser.Deactivate();
                 return true;
             }
             else if (actionName == "ToggleActivated")

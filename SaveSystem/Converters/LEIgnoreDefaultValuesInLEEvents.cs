@@ -2,20 +2,20 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace FS_LevelEditor.SaveSystem.Converters
 {
     public class LEIgnoreDefaultValuesInLEEvents : JsonConverter<LE_Event>
     {
-        public override LE_Event ReadJson(JsonReader reader, Type objectType, LE_Event existingValue, bool hasExistingValue, JsonSerializer serializer)
+        public override LE_Event Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             Logger.Error("[SAVE FILE] LEIgnoreDefaultValuesInLEEvents converter is for write only.");
             throw new NotSupportedException("[SAVE FILE] LEIgnoreDefaultValuesInLEEvents converter is for write only.");
         }
 
-        public override void WriteJson(JsonWriter writer, LE_Event value, JsonSerializer serializer)
+        public override void Write(Utf8JsonWriter writer, LE_Event value, JsonSerializerOptions options)
         {
             var defaultInstance = new LE_Event();
             writer.WriteStartObject();
@@ -23,13 +23,14 @@ namespace FS_LevelEditor.SaveSystem.Converters
             foreach (var property in typeof(LE_Event).GetProperties())
             {
                 if (!property.CanRead || !property.CanWrite) continue;
+
                 object defaultValue = property.GetValue(defaultInstance);
                 object currentValue = property.GetValue(value);
 
                 if (!CustomEquals(defaultValue, currentValue))
                 {
                     writer.WritePropertyName(property.Name);
-                    serializer.Serialize(writer, currentValue, property.PropertyType);
+                    JsonSerializer.Serialize(writer, currentValue, property.PropertyType, options);
                 }
             }
 
