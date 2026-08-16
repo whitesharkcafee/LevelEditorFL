@@ -46,7 +46,7 @@ namespace FS_LevelEditor
             checkpointObj.tag = "Checkpoint";
             // FS uses the trigger name as an identifier, which then is saved into the "Last_Checkpoint" key in the save file.
             checkpointObj.name = "Checkpoint" + CheckpointsCount++;
-
+            checkpointObj.layer = LayerMask.NameToLayer("Ignore Raycast");
             base.InitComponent();
         }
 

@@ -21,8 +21,7 @@ namespace FS_LevelEditor.Playmode.Patches
 				__result = PlayModeController.Instance.levelName;
 				return false; // Skip the original method
 			}
-
-			return true;
+            return true;
 		}
 	}
 }
