@@ -56,7 +56,11 @@ namespace FS_LevelEditor.SaveSystem
                 }
             }
         }
-
+        public static IEnumerable<JsonArray> EnumerateAllEvents(JsonObject root)
+        {
+            if (!root.TryGetPropertyValue("objects", out var objects) || !(objects is JsonArray))
+                yield break;
+        }
         // JsonNode.GetValueKind wasn't introduced until .NET 8 or so, here it's .NET 6, do it ourselves.
         public static JsonValueKind GetValueKind(this JsonNode node)
         {

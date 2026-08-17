@@ -164,4 +164,13 @@ namespace FS_LevelEditor
             }
         }
     }
+
+    [HarmonyPatch(typeof(BlocScript), nameof(BlocScript.FingerHit))]
+    public static class OnCubeGrabPatch
+    {
+        public static void Postfix(BlocScript __instance)
+        {
+            LE_Dummy_Checkpoint.UpdateStaticValues();
+        }
+    }
 }

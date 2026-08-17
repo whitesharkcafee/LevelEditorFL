@@ -23,6 +23,7 @@ namespace FS_LevelEditor
 
         static bool HasGun;
         static bool HasJetpack;
+        static BlocScript ActiveBloc;
 
         public override void InitComponent()
         {
@@ -97,7 +98,7 @@ namespace FS_LevelEditor
             AtLeastOneCheckpointReached = true;
             LastReachedCheckpoint = this;
 
-            UpdateHasGunAndJetpackValues();
+            UpdateStaticValues();
 
             eventExecuter.ExecuteEventsWithAndLogic((List<LE_Event>)properties["OnSave"], "OnSave", true);
         }
@@ -113,13 +114,18 @@ namespace FS_LevelEditor
             Controls.Instance.hasJetPack = HasJetpack;
             Controls.Instance.jetPackObject.SetActive(HasJetpack);
 
+            if (ActiveBloc)
+                ActivableController.activeCubeForInteraction = ActiveBloc;
+
             eventExecuter.ExecuteEventsWithAndLogic((List<LE_Event>)properties["OnRespawn"], "OnRespawn", true);
         }
-        public static void UpdateHasGunAndJetpackValues()
+        public static void UpdateStaticValues()
         {
             // NOTE: They're static, it's intended that the player keeps the taser/jetpack even if he didn't have it when he reached the checkpoint (as long as he acquired them lol).
             HasGun = Controls.Instance.HasTaser();
             HasJetpack = Controls.Instance.hasJetPack;
+
+            ActiveBloc = ActivableController.activeCubeForInteraction;
         }
 
         // FS uses SavedObjeTsHolder.AllCheckpoints to find the current checkpoint (because it's not cached for some reason), and then read the variables from it.
