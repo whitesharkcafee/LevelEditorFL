@@ -72,6 +72,10 @@ namespace FS_LevelEditor
         UILabel noPreviewLabel;
         string currentHoveredLevel = null;
 
+        //async stuff
+        private bool _isLoadingLevelsList = false;
+        private UILabel loadingLevelsLabel; // assign/create however fits your UI setup
+
         void Awake()
         {
             Instance = this;
@@ -416,7 +420,7 @@ namespace FS_LevelEditor
             GameObject.Destroy(credits.GetComponent<UILocalize>());
 
             UILabel creditsLabel = credits.GetComponent<UILabel>();
-            creditsLabel.text = "Created by Javialon_qv and Gray";
+            creditsLabel.text = "Created by Javialon_qv and Cafe";
             creditsLabel.fontSize = 25;
             creditsLabel.alignment = NGUIText.Alignment.Left;
             creditsLabel.pivot = UIWidget.Pivot.Left;
@@ -457,9 +461,66 @@ namespace FS_LevelEditor
                 System.Diagnostics.Process.Start("explorer.exe", $"/root,\"{levelsPath}\"");
             }
         }
-        public void CreateLevelsList(int? desiredGridID = null)
+        public async void CreateLevelsList(int? desiredGridID = null)
         {
-            Dictionary<string, LevelData> levels = LevelData.GetLevelsList();
+            if (_isLoadingLevelsList) return;
+            _isLoadingLevelsList = true;
+
+            ShowLoadingLabel(0, 0);
+
+            var progress = new Progress<(int loaded, int total)>(p => UpdateLoadingLabel(p.loaded, p.total));
+
+            Dictionary<string, LevelData> levels;
+            try
+            {
+                levels = await LevelData.GetLevelsListAsync(progress);
+            }
+            finally
+            {
+                _isLoadingLevelsList = false;
+                HideLoadingLabel();
+            }
+
+            if (leMenuPanel == null || this == null) return;
+
+            BuildLevelsListUI(levels, desiredGridID);
+        }
+
+        private void ShowLoadingLabel(int loaded, int total)
+        {
+            if (loadingLevelsLabel == null)
+            {
+                GameObject labelTemplate = leMenuPanel.GetChild("Title");
+                GameObject go = Instantiate(labelTemplate, leMenuPanel.transform);
+                go.name = "LoadingLevelsLabel";
+                loadingLevelsLabel = go.GetComponent<UILabel>();
+                
+                loadingLevelsLabel.fontSize = 35;
+                loadingLevelsLabel.alignment = NGUIText.Alignment.Center;
+                loadingLevelsLabel.pivot = UIWidget.Pivot.Center;
+                loadingLevelsLabel.width = 800;
+                loadingLevelsLabel.height = 200;
+                loadingLevelsLabel.transform.localPosition = new Vector3(280f, 0f, 0f);
+                TypewriterEffect.Destroy(loadingLevelsLabel.GetComponent<TypewriterEffect>());
+            }
+
+            loadingLevelsLabel.gameObject.SetActive(true);
+            UpdateLoadingLabel(loaded, total);
+        }
+
+        private void UpdateLoadingLabel(int loaded, int total)
+        {
+            if (loadingLevelsLabel == null) return;
+            loadingLevelsLabel.text = $"[c][33ff88]Loading levels\n{loaded}/{total}[-][/c]";
+        }
+
+        private void HideLoadingLabel()
+        {
+            if (loadingLevelsLabel != null) loadingLevelsLabel.gameObject.SetActive(false);
+        }
+
+        private void BuildLevelsListUI(Dictionary<string, LevelData> levels, int? desiredGridID)
+        {
             GameObject btnTemplate = NGUI_Utils.buttonTemplate;
 
             // Manage correctly when the parent already exists or not

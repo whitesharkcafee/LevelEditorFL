@@ -309,7 +309,59 @@ namespace FS_LevelEditor.SaveSystem
 
             return levels;
         }
+        public static async Task<Dictionary<string, LevelData>> GetLevelsListAsync(IProgress<(int loaded, int total)> progress = null)
+        {
+            if (!Directory.Exists(levelsDirectory)) Directory.CreateDirectory(levelsDirectory);
 
+            string[] levelsPaths = Directory.GetFiles(levelsDirectory, "*.lvl");
+            Dictionary<string, LevelData> levels = new Dictionary<string, LevelData>();
+            HashSet<string> currentKeys = new HashSet<string>();
+
+            for (int i = 0; i < levelsPaths.Length; i++)
+            {
+                string levelPath = levelsPaths[i];
+                int total = levelsPaths.Length;
+                string key = Path.GetFileNameWithoutExtension(levelPath);
+                currentKeys.Add(key);
+
+                DateTime lastWrite = File.GetLastWriteTimeUtc(levelPath);
+
+                if (_levelsCacheTimestamps.TryGetValue(key, out DateTime cachedTime) && cachedTime == lastWrite)
+                {
+                    levels.Add(key, _levelsCache[key]);
+                    progress?.Report((levels.Count, total));
+                    continue;
+                }
+
+                LevelData levelData = null;
+                try
+                {
+                    string text = await Task.Run(() => File.ReadAllText(levelPath));
+                    levelData = await Task.Run(() =>
+                        JsonSerializer.Deserialize<LevelData>(text, SavePatchesLegacy.OnReadSaveFileOptions));
+                }
+                catch { }
+
+                levels.Add(key, levelData);
+                _levelsCache[key] = levelData;
+                _levelsCacheTimestamps[key] = lastWrite;
+
+                progress?.Report((levels.Count, total));
+            }
+
+            List<string> staleKeys = new List<string>();
+            foreach (string cachedKey in _levelsCache.Keys)
+            {
+                if (!currentKeys.Contains(cachedKey)) staleKeys.Add(cachedKey);
+            }
+            foreach (string staleKey in staleKeys)
+            {
+                _levelsCache.Remove(staleKey);
+                _levelsCacheTimestamps.Remove(staleKey);
+            }
+
+            return levels;
+        }
         #region Loading Level Related
         static LevelData LoadLevelData(string levelFileNameWithoutExtension)
         {
