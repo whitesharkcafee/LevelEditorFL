@@ -1,5 +1,4 @@
-﻿using FractalSpace;
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,7 +10,6 @@ using UnityEngine.Events;
 
 namespace FS_LevelEditor
 {
-    
     public class LE_Death_Trigger : LE_Object
     {
         public enum TriggerType { RELOCATION, IMMINENT }
@@ -22,6 +20,20 @@ namespace FS_LevelEditor
         public Vector3 RespawnPosition { get; private set; }
         public Vector3 RespawnRotation { get; private set; }
 
+        public bool RotatePlayer
+        {
+            get
+            {
+                if (customWaypointSupport.targetWaypointsData != null && customWaypointSupport.targetWaypointsData.Count > 0)
+                {
+                    // Since it's the waypoint DATA itself and not the spawned one, it's stored as JsonElement.
+                    return ((JsonElement)customWaypointSupport.targetWaypointsData[0].properties["RotatePlayer"]).GetBoolean();
+                }
+
+                return false;
+            }
+        }
+
         public override string[] EventsIDs =>
         new[] { "OnTeleport" };
 
@@ -31,6 +43,7 @@ namespace FS_LevelEditor
             {
                 { "Type", TriggerType.RELOCATION },
                 { "Delay", 0f },
+                { "WithOffset", false },
                 { "waypoints", new List<WaypointData>() }, // In order to not fuck up any waypoints related code in LE, just call this "waypoints", even tho it's just one (the RESPAWN POINT).
                 { "OnTeleport", new List<LE_Event>() }
             };
@@ -59,7 +72,7 @@ namespace FS_LevelEditor
             script.currentRespawnIndex = 0;
             script.m_resetTransform = content.GetChild("Spawn").transform;
 
-            // If not using custom coords, and since respawnPosition uses GLOBAL coords, set them.
+            // If not using custom coords, and since respawnPosition uses GLOBAL coords, use this object itself pivot as the respawn coords.
             if (customWaypointSupport.targetWaypointsData == null || customWaypointSupport.targetWaypointsData.Count == 0)
             {
                 SetRespawnPointPositionAndRotation(transform.position, transform.eulerAngles);
@@ -76,10 +89,10 @@ namespace FS_LevelEditor
 
             if (customWaypointSupport.targetWaypointsData != null && customWaypointSupport.targetWaypointsData.Count > 0)
             {
-                // Since it's the waypoint DATA itself and not the spawned one, it's stored as JsonElement.
-                if (((JsonElement)customWaypointSupport.targetWaypointsData[0].properties["RotatePlayer"]).GetBoolean())
+                if (RotatePlayer)
                 {
-                    script.gameObject.AddComponent<DeathTriggerRespawnRotationPatcher>();
+                    if (GetProperty<float>("Delay") != 0 && GetProperty<LE_Death_Trigger.TriggerType>("Type") == LE_Death_Trigger.TriggerType.RELOCATION)
+                        script.gameObject.AddComponent<DeathTriggerRespawnRotationPatcher>();
                 }
             }
 
@@ -116,7 +129,7 @@ namespace FS_LevelEditor
                     return true;
                 }
             }
-			else if (name == "Delay")
+            else if (name == "Delay")
             {
                 if (value is string)
                 {
@@ -132,22 +145,30 @@ namespace FS_LevelEditor
                     return true;
                 }
             }
-			else if (name == "waypoints")
-			{
-				if (value is List<WaypointData>)
-				{
-					properties["waypoints"] = (List<WaypointData>)value;
-					return true;
-				}
-			}
-			else if (GetAvailableEventsIDs().Contains(name))
-			{
-				if (value is List<LE_Event>)
-				{
-					properties[name] = (List<LE_Event>)value;
-				}
-			}
-			return base.SetProperty(name, value);
+            else if (name == "WithOffset")
+            {
+                if (value is bool boolValue)
+                {
+                    properties["WithOffset"] = boolValue;
+                    return true;
+                }
+            }
+            else if (name == "waypoints")
+            {
+                if (value is List<WaypointData>)
+                {
+                    properties["waypoints"] = (List<WaypointData>)value;
+                    return true;
+                }
+            }
+            else if (GetAvailableEventsIDs().Contains(name))
+            {
+                if (value is List<LE_Event>)
+                {
+                    properties[name] = (List<LE_Event>)value;
+                }
+            }
+            return base.SetProperty(name, value);
         }
         public override bool TriggerAction(string actionName)
         {
@@ -160,19 +181,36 @@ namespace FS_LevelEditor
             return base.TriggerAction(actionName);
         }
 
-	    void ConfigureEvents(ContainmentBox script)
-		{
-			script.onTeleport = new UnityEngine.Events.UnityEvent();
-			script.onTeleport.AddListener((UnityAction)ExecuteOnTeleportEvents);
-		}
-		public void ExecuteOnTeleportEvents()
-		{
-			// OnTeleport is a one-shot activating event for AND logic purposes
-			eventExecuter.ExecuteEventsWithAndLogic((List<LE_Event>)properties["OnTeleport"], "OnTeleport", true);
-		}
-		public static new Color GetDefaultObjectColor(LEObjectContext context)
+        void ConfigureEvents(ContainmentBox script)
+        {
+            script.onTeleport = new UnityEngine.Events.UnityEvent();
+            script.onTeleport.AddListener((UnityAction)ExecuteOnTeleportEvents);
+        }
+        public void ExecuteOnTeleportEvents()
+        {
+            // OnTeleport is a one-shot activating event for AND logic purposes
+            eventExecuter.ExecuteEventsWithAndLogic((List<LE_Event>)properties["OnTeleport"], "OnTeleport", true);
+        }
+        public static new Color GetDefaultObjectColor(LEObjectContext context)
         {
             return new Color(1f, 0f, 0f, 0.05f);
+        }
+    }
+
+    [HarmonyLib.HarmonyPatch(typeof(Controls), nameof(Controls.TeleportPlayerToPosition))]
+    public static class WithOffsetRespawnPatch
+    {
+        public static LE_Death_Trigger AboutToTeleportTo;
+
+        public static void Prefix(ref Vector3 desiredNewPosition, bool syncTransformsNow)
+        {
+            if (!AboutToTeleportTo)
+                return;
+
+            Vector3 diff = Controls.Instance.transform.position - AboutToTeleportTo.transform.position;
+            desiredNewPosition += diff - LE_Death_Trigger.RESPAWN_POINT_POS_OFFSET;
+
+            AboutToTeleportTo = null;
         }
     }
 
@@ -184,10 +222,16 @@ namespace FS_LevelEditor
             LE_Death_Trigger deathTrigger = collider.GetComponentInParent<LE_Death_Trigger>();
             if (deathTrigger)
             {
+                if (deathTrigger.GetProperty<bool>("WithOffset"))
+                    WithOffsetRespawnPatch.AboutToTeleportTo = deathTrigger;
+
                 if (deathTrigger.GetProperty<float>("Delay") == 0 && deathTrigger.GetProperty<LE_Death_Trigger.TriggerType>("Type") == LE_Death_Trigger.TriggerType.RELOCATION)
                 {
                     // The rotation of the player is still handled by the DeathTriggerRespawnRotationPatcher.
                     Controls.Instance.TeleportPlayerToPosition(deathTrigger.script.m_resetTransform.position, true);
+
+                    if (deathTrigger.RotatePlayer)
+                        DeathTriggerRespawnRotationPatcher.RotatePlayerNow(deathTrigger);
 
                     // onTeleport in ContainmentBox is not called for some reason, execute the events manually.
                     deathTrigger.ExecuteOnTeleportEvents();
@@ -200,7 +244,6 @@ namespace FS_LevelEditor
         }
     }
 
-    
     public class DeathTriggerRespawnRotationPatcher : MonoBehaviour
     {
         LE_Death_Trigger script;
@@ -234,17 +277,22 @@ namespace FS_LevelEditor
             // Simulate the delay.
             yield return new WaitForSecondsRealtime(script.GetProperty<float>("Delay")); // Small offset added.
 
+            RotatePlayerNow(script);
+        }
+
+        public static void RotatePlayerNow(LE_Death_Trigger script)
+        {
             // Don't ever ask me why, but since FS uses those yaw and pitch values, I need to pass these eulerAngles values inverted.
             // I've always struggled with rotations. - Jav.
             Transform player = Controls.Instance.player.transform;
             Transform playerCam = Controls.Instance.gameCamera.transform;
 
+            Vector3 globalMovement = Controls.Instance.transform.InverseTransformDirection(Controls.Instance.m_walkingMovement);
+
             player.localEulerAngles = new Vector3(0, script.RespawnRotation.y, 0);
             playerCam.localEulerAngles = new Vector3(script.RespawnRotation.x, playerCam.localEulerAngles.y, playerCam.localEulerAngles.z);
             Controls.Instance.AdjustYawPitchBasedOnCurrent(false, true, true);
-
-            // And since Angle doesn't INSTANTLY move the camera, but it moves it slowly when it's drastically changed... force it ourselves :)
-            //Controls.Instance.transform.eulerAngles = script.respawnRotation;
+            Controls.Instance.m_walkingMovement = Controls.Instance.transform.TransformDirection(globalMovement);
         }
     }
 }
