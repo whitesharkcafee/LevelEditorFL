@@ -1,4 +1,5 @@
-﻿using System;
+﻿using FS_LevelEditor.Editor.UI;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -46,6 +47,12 @@ namespace FS_LevelEditor.Editor
         public static bool ChangeGridHeight(out float scrollDelta)
         {
             scrollDelta = Input.GetAxis("Mouse ScrollWheel");
+            // fix for UI
+            if(UICamera.hoveredObject != null &&
+            UICamera.hoveredObject.transform.IsChildOf(EditorObjectsToBuildUI.Instance.root.transform))
+            {
+                return false;
+            }
 
             return !Input.GetKey(KeyCode.LeftControl) && Mathf.Abs(scrollDelta) > 0.0001f;
         }

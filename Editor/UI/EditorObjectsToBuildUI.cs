@@ -24,7 +24,10 @@ namespace FS_LevelEditor.Editor.UI
         // For the objects to build buttons.
         public GameObject objectsToBuildMainParent;
         List<GameObject> objectsToBuildParentsByCategories = new List<GameObject>();
-        List<List<GameObject>> objectsToBuildGrids = new List<List<GameObject>>();
+        //List<List<GameObject>> objectsToBuildGrids = new List<List<GameObject>>();
+        List<UIScrollView> objectsToBuildScrollViewByCategories = new List<UIScrollView>();
+        List<UITable> objectsToBuildTablesByCategories = new List<UITable>();
+        List<List<GameObject>> objectsToBuildButtonsByCategories = new List<List<GameObject>>();
         static readonly Dictionary<LE_Object.ObjectType, Texture> iconCache = new Dictionary<LE_Object.ObjectType, Texture>();
 
         List<GameObject> allActiveSwatches = new List<GameObject>();
@@ -32,7 +35,10 @@ namespace FS_LevelEditor.Editor.UI
         UIButtonPatcher previousGridButton, nextGridButton;
 
         int currentCategoryID;
-        int currentGridID;
+
+        const float ClipWidth = 1830f;
+        const float ClipHeight = 140f;
+        //int currentGridID;
 
         public static void Create(Transform editorUIParent)
         {
@@ -53,8 +59,8 @@ namespace FS_LevelEditor.Editor.UI
             CreateObjectsBackground();
             CreateALLOfTheObjectsButtons();
 
-            CreatePreviousGridButton();
-            CreateNextGridButton();
+           // CreatePreviousGridButton();
+            //CreateNextGridButton();
         }
 
         void Start()
@@ -65,14 +71,31 @@ namespace FS_LevelEditor.Editor.UI
         void OnDestroy()
         {
             objectsToBuildParentsByCategories.Clear();
-            objectsToBuildGrids.ForEach(x => x.Clear());
-            objectsToBuildGrids.Clear();
+            //objectsToBuildGrids.ForEach(x => x.Clear());
+            //objectsToBuildGrids.Clear();
             allActiveSwatches.Clear();
+            objectsToBuildScrollViewByCategories.Clear();
+            objectsToBuildTablesByCategories.Clear();
+            objectsToBuildButtonsByCategories.ForEach(x => x.Clear());
+            objectsToBuildButtonsByCategories.Clear();
+            
 
             objectsToBuildParentsByCategories = null;
-            objectsToBuildGrids.ForEach(x => x = null);
-            objectsToBuildGrids = null;
+            objectsToBuildScrollViewByCategories = null;
+            objectsToBuildTablesByCategories = null;
+            objectsToBuildButtonsByCategories = null;
+            //objectsToBuildGrids.ForEach(x => x = null);
+            //objectsToBuildGrids = null;
             allActiveSwatches = null;
+        }
+
+        public class ScrollInputBlocker: MonoBehaviour
+        {
+            void OnScroll(float delta)
+            {
+                UIScrollView sv = GetComponentInParent<UIScrollView>();
+                if (sv != null) sv.Scroll(delta);
+            }
         }
 
 		#region Create UI
@@ -86,8 +109,8 @@ namespace FS_LevelEditor.Editor.UI
 			SelectObjToBuild(0);
 
 			// Optionally, trigger the button click if you want the selection logic to run
-			GameObject firstGrid = objectsToBuildGrids[0][0];
-			UIButtonPatcher firstButton = firstGrid.transform.GetChild(0).GetComponent<UIButtonPatcher>();
+			GameObject firstGrid = objectsToBuildButtonsByCategories[0][0];
+			UIButtonPatcher firstButton = firstGrid.GetComponent<UIButtonPatcher>();
 			firstButton.OnClick();
 		}
 
@@ -165,42 +188,106 @@ namespace FS_LevelEditor.Editor.UI
                 createdButtonsParent.SetActive(i == 0);
             }
         }
+        
         GameObject CreateObjectsForCategory(int categoryID)
         {
             GameObject categoryObjectsBtnParent = new GameObject(EditorController.Instance.categoriesNames[categoryID]);
             categoryObjectsBtnParent.transform.parent = objectsToBuildMainParent.transform;
             categoryObjectsBtnParent.transform.localPosition = Vector3.zero;
             categoryObjectsBtnParent.transform.localScale = Vector3.one;
+            categoryObjectsBtnParent.layer = objectsToBuildMainParent.layer;
 
-            List<GameObject> grids = new List<GameObject>();
-            Transform currentGrid = null;
-            UITable currentGridTable = null;
+            GameObject scrollViewObj = new GameObject("ObjectsScrollView");
+            scrollViewObj.layer = objectsToBuildMainParent.layer;
+            scrollViewObj.transform.parent = categoryObjectsBtnParent.transform;
+            scrollViewObj.transform.localPosition = Vector3.zero;
+            scrollViewObj.transform.localScale = Vector3.one;
+
+            UIPanel panel = scrollViewObj.AddComponent<UIPanel>();
+            panel.clipping = UIDrawCall.Clipping.TextureMask;
+            panel.baseClipRegion = new Vector4(0f, 0f, ClipWidth, ClipHeight);
+            panel.clipSoftness = new Vector2(4f, 4f);
+
+            Texture2D maskTex = Resources.FindObjectsOfTypeAll<Texture2D>()
+                    .FirstOrDefault(t => t.name == "ScrollSquareTextureMask_Hard");
+
+            if (maskTex != null)
+            {
+                panel.clipTexture = maskTex;
+            }
+            else
+            {
+                panel.clipping = UIDrawCall.Clipping.SoftClip;
+            }
+
+            UIPanel parentPanel = objectsToBuildMainParent.GetComponent<UIPanel>();
+            panel.depth = parentPanel != null ? parentPanel.depth + 1 : 1;
+
+            UIScrollView scrollView = scrollViewObj.AddComponent<UIScrollView>();
+            scrollView.movement = UIScrollView.Movement.Horizontal;
+            scrollView.dragEffect = UIScrollView.DragEffect.Momentum;
+            scrollView.dampenStrength = 15f;
+            scrollView.momentumAmount = 25f;
+            scrollView.scrollWheelFactor = 1f;
+            scrollView.restrictWithinPanel = true;
+            scrollView.disableDragIfFits = true;
+
+            BoxCollider svCollider = scrollViewObj.AddComponent<BoxCollider>();
+            svCollider.size = new Vector3(ClipWidth, ClipHeight, 0f);
+            svCollider.center = Vector3.zero;
+            scrollViewObj.AddComponent<UIDragScrollView>();
+
+            GameObject tableObj = new GameObject("ButtonsTable");
+            tableObj.layer = objectsToBuildMainParent.layer;
+            tableObj.transform.parent = scrollViewObj.transform;
+            tableObj.transform.localScale = Vector3.one;
+            tableObj.transform.localPosition = new Vector3(-(ClipWidth / 2f), 0f, 0f);
+
+            UITable table = tableObj.AddComponent<UITable>();
+            table.cellAlignment = UIWidget.Pivot.Left;
+            table.pivot = UIWidget.Pivot.Left;
+            table.padding = new Vector2(8f, 12.04f);
+            table.columns = 0;
+
+            GameObject spacerObj = new GameObject("LeftSpacer");
+            spacerObj.layer = objectsToBuildMainParent.layer;
+            spacerObj.transform.parent = tableObj.transform;
+            spacerObj.transform.localScale = Vector3.one;
+            UIWidget spacerWidget = spacerObj.AddComponent<UIWidget>();
+            spacerWidget.width = 5; // Adjust this value (e.g., 20 to 30) if you need more/less room
+            spacerWidget.height = 10;
+
+            List<GameObject> buttons = new List<GameObject>();
+
+            //List<GameObject> grids = new List<GameObject>();
+            //Transform currentGrid = null;
+            //UITable currentGridTable = null;
             for (int i = 0; i < EditorController.Instance.allCategoriesObjectsSorted[categoryID].Count; i++)
             {
-                // Create a new grid.
-                if (i % 12 == 0 || i == 0)
-                {
-                    currentGrid = new GameObject("Grid " + i).transform;
-                    currentGrid.parent = categoryObjectsBtnParent.transform;
-                    currentGrid.localScale = Vector3.one;
-                    currentGrid.gameObject.SetActive(i == 0); // Only enable the first grid by default.
+                //// Create a new grid.
+                //if (i % 12 == 0 || i == 0)
+                //{
+                //    currentGrid = new GameObject("Grid " + i).transform;
+                //    currentGrid.parent = categoryObjectsBtnParent.transform;
+                //    currentGrid.localScale = Vector3.one;
+                //    currentGrid.gameObject.SetActive(i == 0); // Only enable the first grid by default.
 
-                    currentGridTable = currentGrid.gameObject.AddComponent<UITable>();
-                    currentGridTable.cellAlignment = UIWidget.Pivot.Center;
-                    currentGridTable.pivot = UIWidget.Pivot.Left;
-                    currentGridTable.padding = new Vector2(8f, 12.04f);
+                //    currentGridTable = currentGrid.gameObject.AddComponent<UITable>();
+                //    currentGridTable.cellAlignment = UIWidget.Pivot.Center;
+                //    currentGridTable.pivot = UIWidget.Pivot.Left;
+                //    currentGridTable.padding = new Vector2(8f, 12.04f);
 
-                    currentGrid.localPosition = new Vector3(-870f, 0f, 0f);
+                //    currentGrid.localPosition = new Vector3(-870f, 0f, 0f);
 
-                    grids.Add(currentGrid.gameObject);
-                }
+                //    grids.Add(currentGrid.gameObject);
+                //}
 
 
                 var objectInfo = EditorController.Instance.allCategoriesObjectsSorted[categoryID].ToList()[i];
                 LE_Object.ObjectType? objectType = objectInfo.Key;
                 string objectLocKey = "object." + objectType.ToString();
 
-                var button = NGUI_Utils.CreateColorButton(currentGrid, Vector3.zero, objectLocKey);
+                var button = NGUI_Utils.CreateColorButton(tableObj.transform, Vector3.zero, objectLocKey);
                 button.name = objectType.ToString();
 
                 //create icons
@@ -216,7 +303,7 @@ namespace FS_LevelEditor.Editor.UI
 
                 button.onClick += () => EditorController.Instance.SelectObjectToBuild(objectType);
                 int buttonChildID = i;
-                button.onClick += () => SelectObjToBuild(buttonChildID % 12);
+                button.onClick += () => SelectObjToBuild(buttonChildID);
 
                 button.transform.localScale = Vector3.one * 0.8f;
 
@@ -225,31 +312,53 @@ namespace FS_LevelEditor.Editor.UI
 
                 allActiveSwatches.Add(button.gameObject.GetChild("ActiveSwatch"));
 
-                if (i % 12 == 0 || i == 0) currentGridTable.Reposition(); // Reposition if in this iteration we created a grid.
+                //if (i % 12 == 0 || i == 0) currentGridTable.Reposition(); // Reposition if in this iteration we created a grid.
+                button.gameObject.AddComponent<UIDragScrollView>();
+                buttons.Add(button.gameObject);
+            }
+
+            //objectsToBuildParentsByCategories.Add(categoryObjectsBtnParent);
+            //objectsToBuildGrids.Add(grids);
+
+            GameObject rightSpacerObj = new GameObject("RightSpacer");
+            rightSpacerObj.layer = objectsToBuildMainParent.layer;
+            rightSpacerObj.transform.parent = tableObj.transform;
+            rightSpacerObj.transform.localScale = Vector3.one;
+            UIWidget rightSpacerWidget = rightSpacerObj.AddComponent<UIWidget>();
+            rightSpacerWidget.width = 5;
+            rightSpacerWidget.height = 10;
+            table.Reposition();
+
+           // scrollView.ResetPosition();
+            panel.Refresh();
+
+            foreach(UIWidget w in tableObj.GetComponentsInChildren<UIWidget>(true))
+            {
+                w.ParentHasChanged();
             }
 
             objectsToBuildParentsByCategories.Add(categoryObjectsBtnParent);
-            objectsToBuildGrids.Add(grids);
-
-
+            objectsToBuildScrollViewByCategories.Add(scrollView);
+            objectsToBuildTablesByCategories.Add(table);
+            objectsToBuildButtonsByCategories.Add(buttons);
 
             return categoryObjectsBtnParent;
         }
 
-        void CreatePreviousGridButton()
-        {
-            previousGridButton = NGUI_Utils.CreateButton(objectsToBuildMainParent.transform, new Vector3(-892, 0), new Vector3Int(50, 128, 0), "<");
-            previousGridButton.gameObject.RemoveComponent<UIButtonScale>();
-            previousGridButton.buttonSprite.depth = 1;
-            previousGridButton.onClick += PreviousGridPage;
-        }
-        void CreateNextGridButton()
-        {
-            nextGridButton = NGUI_Utils.CreateButton(objectsToBuildMainParent.transform, new Vector3(892, 0), new Vector3Int(50, 128, 0), ">");
-            nextGridButton.gameObject.RemoveComponent<UIButtonScale>();
-            nextGridButton.buttonSprite.depth = 1;
-            nextGridButton.onClick += NextGridPage;
-        }
+        //void CreatePreviousGridButton()
+        //{
+        //    previousGridButton = NGUI_Utils.CreateButton(objectsToBuildMainParent.transform, new Vector3(-892, 0), new Vector3Int(50, 128, 0), "<");
+        //    previousGridButton.gameObject.RemoveComponent<UIButtonScale>();
+        //    previousGridButton.buttonSprite.depth = 1;
+        //    previousGridButton.onClick += PreviousGridPage;
+        //}
+        //void CreateNextGridButton()
+        //{
+        //    nextGridButton = NGUI_Utils.CreateButton(objectsToBuildMainParent.transform, new Vector3(892, 0), new Vector3Int(50, 128, 0), ">");
+        //    nextGridButton.gameObject.RemoveComponent<UIButtonScale>();
+        //    nextGridButton.buttonSprite.depth = 1;
+        //    nextGridButton.onClick += NextGridPage;
+        //}
 		#endregion
 
 
@@ -264,7 +373,10 @@ namespace FS_LevelEditor.Editor.UI
 
 			objectsToBuildParentsByCategories[categoryID].SetActive(true);
 
-			SetCurrentSelectedCategoryGrid(0);
+            //SetCurrentSelectedCategoryGrid(0);
+
+            //Reset scroll pos
+            objectsToBuildScrollViewByCategories[categoryID].ResetPosition();
 
 			// Do NOT select the first button here either.
 		}
@@ -272,53 +384,54 @@ namespace FS_LevelEditor.Editor.UI
         {
             allActiveSwatches.ForEach(swatch => swatch.SetActive(false));
 
-            GameObject currentGrid = objectsToBuildGrids[currentCategoryID][currentGridID];
-            GameObject newSelectedButton = currentGrid.transform.GetChild(buttonID).gameObject;
+            //GameObject currentGrid = objectsToBuildGrids[currentCategoryID][currentGridID];
+            //GameObject newSelectedButton = currentGrid.transform.GetChild(buttonID).gameObject;
+            GameObject newSelectedButton = objectsToBuildButtonsByCategories[currentCategoryID][buttonID];
             newSelectedButton.GetChild("ActiveSwatch").SetActive(true);
         }
 
-        void PreviousGridPage()
-        {
-            if (currentGridID > 0)
-            {
-                SetCurrentSelectedCategoryGrid(currentGridID - 1);
-            }
-        }
-        void NextGridPage()
-        {
-            if (currentGridID < objectsToBuildGrids[currentCategoryID].Count - 1)
-            {
-                SetCurrentSelectedCategoryGrid(currentGridID + 1);
-            }
-        }
-		void SetCurrentSelectedCategoryGrid(int gridIndex)
-		{
-			currentGridID = gridIndex;
+        //void PreviousGridPage()
+        //{
+        //    if (currentGridID > 0)
+        //    {
+        //        SetCurrentSelectedCategoryGrid(currentGridID - 1);
+        //    }
+        //}
+        //void NextGridPage()
+        //{
+        //    if (currentGridID < objectsToBuildGrids[currentCategoryID].Count - 1)
+        //    {
+        //        SetCurrentSelectedCategoryGrid(currentGridID + 1);
+        //    }
+        //}
+		//void SetCurrentSelectedCategoryGrid(int gridIndex)
+		//{
+		//	currentGridID = gridIndex;
 
-			objectsToBuildGrids[currentCategoryID].ForEach(grid => grid.SetActive(false));
-			objectsToBuildGrids[currentCategoryID][gridIndex].SetActive(true);
+		//	objectsToBuildGrids[currentCategoryID].ForEach(grid => grid.SetActive(false));
+		//	objectsToBuildGrids[currentCategoryID][gridIndex].SetActive(true);
 
-			// Do NOT call SelectObjToBuild(0) or trigger any button click here.
-			// This prevents the tick from appearing on the first object by default.
+		//	// Do NOT call SelectObjToBuild(0) or trigger any button click here.
+		//	// This prevents the tick from appearing on the first object by default.
 
-			UpdatePreviousAndNextGridButtonsState();
-		}
-		void UpdatePreviousAndNextGridButtonsState()
-        {
-            if (objectsToBuildGrids[currentCategoryID].Count == 1)
-            {
-                previousGridButton.gameObject.SetActive(false);
-                nextGridButton.gameObject.SetActive(false);
-            }
-            else if (objectsToBuildGrids[currentCategoryID].Count > 1)
-            {
-                previousGridButton.gameObject.SetActive(true);
-                nextGridButton.gameObject.SetActive(true);
+		//	UpdatePreviousAndNextGridButtonsState();
+		//}
+		//void UpdatePreviousAndNextGridButtonsState()
+  //      {
+  //          if (objectsToBuildGrids[currentCategoryID].Count == 1)
+  //          {
+  //              previousGridButton.gameObject.SetActive(false);
+  //              nextGridButton.gameObject.SetActive(false);
+  //          }
+  //          else if (objectsToBuildGrids[currentCategoryID].Count > 1)
+  //          {
+  //              previousGridButton.gameObject.SetActive(true);
+  //              nextGridButton.gameObject.SetActive(true);
 
-                previousGridButton.button.isEnabled = currentGridID > 0;
-                nextGridButton.button.isEnabled = currentGridID < objectsToBuildGrids[currentCategoryID].Count - 1;
-            }
-        }
+  //              previousGridButton.button.isEnabled = currentGridID > 0;
+  //              nextGridButton.button.isEnabled = currentGridID < objectsToBuildGrids[currentCategoryID].Count - 1;
+  //          }
+  //      }
 
         public void HideOrShowCategoryButtons()
         {
