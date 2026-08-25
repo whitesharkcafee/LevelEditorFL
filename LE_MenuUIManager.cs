@@ -454,8 +454,6 @@ namespace FS_LevelEditor
             if (loadingLevelsLabel != null) loadingLevelsLabel.gameObject.SetActive(false);
         }
 
-
-
         // Creates two opaque plates that sit ABOVE the scroll view's clip
         // panel (higher depth) and are parented OUTSIDE the scrolling
         // content (under lvlButtonsParent, not scrollViewObj/grid) so they
@@ -645,7 +643,7 @@ namespace FS_LevelEditor
                 }
 
                 UIPanel parentPanel = leMenuPanel.GetComponent<UIPanel>();
-                panel.depth = parentPanel != null ? parentPanel.depth + 10 : 10;
+                panel.depth = parentPanel != null ? parentPanel.depth + 1 : 1;
 
                 scrollView = scrollViewObj.AddComponent<UIScrollView>();
                 scrollView.movement = UIScrollView.Movement.Vertical;
@@ -676,13 +674,22 @@ namespace FS_LevelEditor
                 scrollViewObj = svTrans.gameObject;
                 scrollView = scrollViewObj.GetComponent<UIScrollView>();
                 grid = scrollViewObj.transform.Find("Grid").GetComponent<UIGrid>();
-                grid.gameObject.DeleteAllChildren();
+
+                List<GameObject> childrenToDestroy = new List<GameObject>();
+                foreach (Transform child in grid.transform)
+                {
+                    childrenToDestroy.Add(child.gameObject);
+                }
+                foreach (GameObject child in childrenToDestroy)
+                {
+                    child.transform.parent = null;
+                    Destroy(child);
+                }
 
                 panel = scrollViewObj.GetComponent<UIPanel>();
 
                 // Ensure TextureMask is applied on rebuilds too
                 panel.clipping = UIDrawCall.Clipping.TextureMask;
-                // NEW CLIP REGION APPLIED HERE AS WELL
                 panel.baseClipRegion = new Vector4(0f, -17.5f, 1285f, 585f);
                 panel.clipSoftness = new Vector2(4f, 4f);
 
@@ -732,13 +739,11 @@ namespace FS_LevelEditor
                 lvlButton.buttonLabel.alignment = NGUIText.Alignment.Left;
                 lvlButton.buttonLabel.pivot = UIWidget.Pivot.Left;
 
-                // FIX FOR BLACK TEXT: Replaced the broken [c] tag with standard NGUI [FFFFFF] 
-                // and commented out dynamic font reassignment so NGUI generates the clipped material correctly.
-                lvlButton.buttonLabel.text = data != null ? $"[FFFFFF]{data.levelName}[-]" : $"[FFFF00][INVALID LEVEL FILE][-] {levelFileNameWithoutExtension}";
+                lvlButton.buttonLabel.text = data != null ? data.levelName : $"[c][ffff00][INVALID LEVEL FILE][-][/c] {levelFileNameWithoutExtension}";
                 lvlButton.buttonLabel.fontSize = 40;
                 lvlButton.buttonLabel.transform.localPosition = new Vector3(-595f, 0f, 0f);
                 lvlButton.buttonLabel.color = Color.white;
-                lvlButton.buttonLabel.bitmapFont = NGUI_Utils.notoSansFont; // <-- DELIBERATELY DISABLED to fix clipping/bleeding/black text bug!
+                lvlButton.buttonLabel.bitmapFont = NGUI_Utils.notoSansFont;
 
                 if (data != null)
                 {
@@ -1242,7 +1247,7 @@ namespace FS_LevelEditor
 
         private void OnApplicationFocus(bool hasFocus)
         {
-            if (hasFocus && trackIfComingBack)
+            if (hasFocus && inLEMenu && !_isLoadingLevelsList)
             {
                 trackIfComingBack = false;
                 CreateLevelsList();
